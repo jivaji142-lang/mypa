@@ -1,21 +1,40 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, index, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql } from "drizzle-orm";
 
-export * from "./models/auth";
+// Session storage table - mandatory for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)]
+);
 
+// User storage table - unified schema for auth and app
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  email: text("email"), // Optional for Replit Auth
-  subscriptionStatus: text("subscription_status").default("trial"), // trial, active, expired
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  // App-specific fields
+  subscriptionStatus: text("subscription_status").default("trial"),
   trialEndsAt: timestamp("trial_ends_at").defaultNow(),
-  language: text("language").default("english"), // hindi, english, marathi
+  language: text("language").default("english"),
 });
+
+export type UpsertUser = typeof users.$inferInsert;
+export type User = typeof users.$inferSelect;
 
 export const alarms = pgTable("alarms", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: varchar("user_id").notNull(),
   title: text("title").notNull(),
   time: text("time").notNull(), // HH:mm format
   days: text("days").array(), // ["Mon", "Tue", ...]
@@ -28,7 +47,7 @@ export const alarms = pgTable("alarms", {
 
 export const medicines = pgTable("medicines", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   photoUrl: text("photo_url"),
   timeOfDay: text("time_of_day").notNull(), // morning, afternoon, evening, night
