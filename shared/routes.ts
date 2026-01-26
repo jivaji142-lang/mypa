@@ -67,6 +67,15 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    update: {
+      method: 'PUT' as const,
+      path: '/api/medicines/:id',
+      input: insertMedicineSchema.partial(),
+      responses: {
+        200: z.custom<typeof medicines.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
     delete: {
       method: 'DELETE' as const,
       path: '/api/medicines/:id',

@@ -88,6 +88,21 @@ export async function registerRoutes(
     }
   });
 
+  app.put(api.medicines.update.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const input = api.medicines.update.input.parse(req.body);
+      const medicine = await storage.updateMedicine(Number(req.params.id), input);
+      res.json(medicine);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+        return;
+      }
+      res.status(404).json({ message: "Medicine not found" });
+    }
+  });
+
   app.delete(api.medicines.delete.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     await storage.deleteMedicine(Number(req.params.id));

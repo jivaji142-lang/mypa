@@ -70,8 +70,13 @@ export class DatabaseStorage implements IStorage {
     return newMedicine;
   }
 
-  async deleteMedicine(id: number): Promise<void> {
-    await db.delete(medicines).where(eq(medicines.id, id));
+  async updateMedicine(id: number, medicine: Partial<InsertMedicine>): Promise<Medicine> {
+    const [updatedMedicine] = await db
+      .update(medicines)
+      .set(medicine)
+      .where(eq(medicines.id, id))
+      .returning();
+    return updatedMedicine;
   }
 }
 
