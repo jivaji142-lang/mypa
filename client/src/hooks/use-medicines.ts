@@ -47,6 +47,35 @@ export function useCreateMedicine() {
   });
 }
 
+export function useUpdateMedicine() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: number } & Partial<InsertMedicine>) => {
+      const validated = api.medicines.update.input.parse(updates);
+      const url = buildUrl(api.medicines.update.path, { id });
+      
+      const res = await fetch(url, {
+        method: api.medicines.update.method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(validated),
+        credentials: "include",
+      });
+
+      if (!res.ok) throw new Error("Failed to update medicine");
+      return api.medicines.update.responses[200].parse(await res.json());
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.medicines.list.path] });
+      toast({ title: "Success", description: "Medicine updated successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
 export function useDeleteMedicine() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

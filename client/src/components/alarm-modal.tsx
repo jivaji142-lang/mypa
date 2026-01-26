@@ -4,61 +4,116 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
-import { useState } from "react";
-import { useCreateAlarm } from "@/hooks/use-alarms";
+import { Plus, Loader2, Calendar as CalendarIcon, Camera, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useCreateAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
 import { useUpload } from "@/hooks/use-upload";
 import { VoiceRecorder } from "@/components/voice-recorder";
+import { Checkbox } from "@/components/ui/checkbox";
 
-export function AlarmModal() {
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const LANGUAGES = [
+  { label: "English", value: "english" },
+  { label: "Hindi", value: "hindi" },
+  { label: "Marathi", value: "marathi" },
+];
+
+interface AlarmModalProps {
+  alarm?: any;
+  trigger?: React.ReactNode;
+}
+
+export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
   const [open, setOpen] = useState(false);
   const createAlarm = useCreateAlarm();
+  const updateAlarm = useUpdateAlarm();
   const upload = useUpload();
   
   const [formData, setFormData] = useState({
     title: "",
     time: "07:00",
+    date: "",
+    days: [] as string[],
     type: "speaking",
     textToSpeak: "",
     voiceGender: "female",
     voiceUrl: "",
+    imageUrl: "",
+    language: "english",
   });
+
+  useEffect(() => {
+    if (alarm) {
+      setFormData({
+        title: alarm.title || "",
+        time: alarm.time || "07:00",
+        date: alarm.date || "",
+        days: alarm.days || [],
+        type: alarm.type || "speaking",
+        textToSpeak: alarm.textToSpeak || "",
+        voiceGender: alarm.voiceGender || "female",
+        voiceUrl: alarm.voiceUrl || "",
+        imageUrl: alarm.imageUrl || "",
+        language: alarm.language || "english",
+      });
+    }
+  }, [alarm, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    createAlarm.mutate(
-      {
-        ...formData,
-        userId: "placeholder", // Backend replaces this with actual authenticated user ID
-        days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], // Default to daily for MVP
-      },
-      {
+    const data = {
+      ...formData,
+      userId: "placeholder",
+    };
+
+    if (alarm) {
+      updateAlarm.mutate({ id: alarm.id, ...data }, {
         onSuccess: () => setOpen(false),
-      }
-    );
+      });
+    } else {
+      createAlarm.mutate(data, {
+        onSuccess: () => setOpen(false),
+      });
+    }
   };
 
-  const handleRecording = async (blob: Blob) => {
-    upload.mutate(blob, {
-      onSuccess: (data) => {
-        setFormData(prev => ({ ...prev, voiceUrl: data.url }));
-      }
-    });
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'voiceUrl' | 'imageUrl') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      upload.mutate(file, {
+        onSuccess: (data) => {
+          setFormData(prev => ({ ...prev, [field]: data.url }));
+        }
+      });
+    }
+  };
+
+  const toggleDay = (day: string) => {
+    setFormData(prev => ({
+      ...prev,
+      days: prev.days.includes(day) 
+        ? prev.days.filter(d => d !== day)
+        : [...prev.days, day]
+    }));
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="rounded-xl px-6 py-6 bg-gradient-to-r from-[#00BAF2] to-[#002E6E] shadow-lg shadow-blue-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all text-white font-semibold text-lg italic">
-          <Plus className="w-5 h-5 mr-2" /> New Alarm
-        </Button>
+        {trigger || (
+          <Button className="rounded-xl px-6 py-6 bg-gradient-to-r from-[#00BAF2] to-[#002E6E] shadow-lg shadow-blue-500/20 hover:shadow-xl hover:-translate-y-0.5 transition-all text-white font-semibold text-lg italic">
+            <Plus className="w-5 h-5 mr-2" /> New Alarm
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg bg-white border-blue-100 shadow-2xl">
+      <DialogContent className="sm:max-w-lg bg-white border-blue-100 shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-[#002E6E] font-bold">Set New Alarm</DialogTitle>
+          <DialogTitle className="text-2xl text-[#002E6E] font-bold">
+            {alarm ? "Edit Alarm" : "Set New Alarm"}
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
+        <form onSubmit={handleSubmit} className="space-y-6 mt-4 pb-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Alarm Name</Label>
@@ -83,6 +138,52 @@ export function AlarmModal() {
           </div>
 
           <div className="space-y-3">
+            <Label>Schedule Type</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500">Specific Date (Optional)</Label>
+                <Input 
+                  type="date"
+                  value={formData.date}
+                  onChange={e => setFormData({ ...formData, date: e.target.value })}
+                  className="royal-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500">Language</Label>
+                <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
+                  <SelectTrigger className="royal-input">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map(lang => (
+                      <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2 pt-2">
+              <Label className="text-xs text-slate-500">Repeat Days</Label>
+              <div className="flex flex-wrap gap-2">
+                {DAYS.map(day => (
+                  <Button
+                    key={day}
+                    type="button"
+                    variant={formData.days.includes(day) ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 w-10 text-[10px] p-0 rounded-md ${formData.days.includes(day) ? "bg-[#00BAF2] hover:bg-[#00BAF2]/90" : "text-slate-500"}`}
+                    onClick={() => toggleDay(day)}
+                  >
+                    {day.slice(0, 3)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-3">
             <Label>Alarm Type</Label>
             <RadioGroup 
               value={formData.type} 
@@ -91,22 +192,77 @@ export function AlarmModal() {
             >
               <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
                 <RadioGroupItem value="speaking" id="speaking" />
-                <Label htmlFor="speaking" className="cursor-pointer">Speaking</Label>
+                <Label htmlFor="speaking" className="cursor-pointer text-xs">Speaking</Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
                 <RadioGroupItem value="custom_voice" id="custom" />
-                <Label htmlFor="custom" className="cursor-pointer">My Voice</Label>
+                <Label htmlFor="custom" className="cursor-pointer text-xs">My Voice</Label>
               </div>
               <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
                 <RadioGroupItem value="text" id="text" />
-                <Label htmlFor="text" className="cursor-pointer">Text Msg</Label>
+                <Label htmlFor="text" className="cursor-pointer text-xs">Text Msg</Label>
               </div>
             </RadioGroup>
           </div>
 
+          <div className="space-y-4">
+            <Label>Photo (Optional)</Label>
+            <div className="flex gap-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1 royal-input h-10 gap-2 border-dashed"
+                onClick={() => document.getElementById('camera-input')?.click()}
+              >
+                <Camera className="w-4 h-4" /> Camera
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="flex-1 royal-input h-10 gap-2 border-dashed"
+                onClick={() => document.getElementById('gallery-input')?.click()}
+              >
+                <ImageIcon className="w-4 h-4" /> Gallery
+              </Button>
+              <input 
+                id="camera-input" 
+                type="file" 
+                accept="image/*" 
+                capture="environment" 
+                className="hidden" 
+                onChange={(e) => handleFileUpload(e, 'imageUrl')}
+              />
+              <input 
+                id="gallery-input" 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={(e) => handleFileUpload(e, 'imageUrl')}
+              />
+            </div>
+            {formData.imageUrl && (
+              <div className="relative w-20 h-20 rounded-lg overflow-hidden border border-blue-100">
+                <img src={formData.imageUrl} className="w-full h-full object-cover" />
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  size="icon" 
+                  className="absolute top-0 right-0 w-5 h-5 h-5 w-5 rounded-none"
+                  onClick={() => setFormData(prev => ({ ...prev, imageUrl: "" }))}
+                >
+                  ×
+                </Button>
+              </div>
+            )}
+          </div>
+
           {formData.type === "custom_voice" && (
             <VoiceRecorder 
-              onRecordingComplete={handleRecording} 
+              onRecordingComplete={(blob) => {
+                upload.mutate(blob, {
+                  onSuccess: (data) => setFormData(prev => ({ ...prev, voiceUrl: data.url }))
+                });
+              }} 
               isUploading={upload.isPending} 
             />
           )}
@@ -143,10 +299,10 @@ export function AlarmModal() {
 
           <Button 
             type="submit" 
-            disabled={createAlarm.isPending || (formData.type === "custom_voice" && !formData.voiceUrl) || upload.isPending}
+            disabled={createAlarm.isPending || updateAlarm.isPending || (formData.type === "custom_voice" && !formData.voiceUrl) || upload.isPending}
             className="w-full h-12 text-lg rounded-xl bg-[#002E6E] hover:bg-[#002E6E]/90 text-white font-semibold shadow-lg shadow-blue-900/10 italic"
           >
-            {createAlarm.isPending ? <Loader2 className="animate-spin" /> : "Set Alarm"}
+            {(createAlarm.isPending || updateAlarm.isPending) ? <Loader2 className="animate-spin" /> : alarm ? "Update Alarm" : "Set Alarm"}
           </Button>
         </form>
       </DialogContent>
