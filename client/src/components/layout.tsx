@@ -91,7 +91,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main 
-        className="flex-1 lg:ml-72 p-4 md:p-8 pt-20 lg:pt-8 min-h-screen"
+        className="flex-1 lg:ml-72 p-4 md:p-8 pt-20 lg:pt-8 overflow-y-auto"
         onClick={() => {
           // Unlock audio/speech on first user interaction
           if (!window.speechSynthesis.speaking) {
