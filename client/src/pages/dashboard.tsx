@@ -124,7 +124,16 @@ export default function Dashboard() {
       
       const utterance = new SpeechSynthesisUtterance(item.textToSpeak || "");
       const lang = user?.language || item.language || 'english';
-      utterance.lang = lang === 'hindi' ? 'hi-IN' : lang === 'marathi' ? 'mr-IN' : 'en-US';
+      
+      const langMap: Record<string, string> = {
+        english: 'en-US', hindi: 'hi-IN', marathi: 'mr-IN', spanish: 'es-ES',
+        french: 'fr-FR', german: 'de-DE', chinese: 'zh-CN', japanese: 'ja-JP',
+        arabic: 'ar-SA', russian: 'ru-RU', portuguese: 'pt-PT', bengali: 'bn-IN',
+        telugu: 'te-IN', tamil: 'ta-IN', gujarati: 'gu-IN', kannada: 'kn-IN',
+        malayalam: 'ml-IN', punjabi: 'pa-IN'
+      };
+      
+      utterance.lang = langMap[lang] || 'en-US';
       
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(item.voiceGender === 'male' ? 'Male' : 'Female')) || 

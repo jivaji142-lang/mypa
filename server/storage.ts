@@ -82,6 +82,15 @@ export class DatabaseStorage implements IStorage {
   async deleteMedicine(id: number): Promise<void> {
     await db.delete(medicines).where(eq(medicines.id, id));
   }
+  async updateUser(id: string, update: Partial<User>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(update)
+      .where(eq(users.id, id))
+      .returning();
+    if (!updatedUser) throw new Error("User not found");
+    return updatedUser;
+  }
 }
 
 export const storage = new DatabaseStorage();

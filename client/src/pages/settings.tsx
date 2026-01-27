@@ -10,8 +10,23 @@ import { Button } from "@/components/ui/button";
 
 const LANGUAGES = [
   { label: "English", value: "english" },
-  { label: "Hindi", value: "hindi" },
-  { label: "Marathi", value: "marathi" },
+  { label: "Hindi (हिंदी)", value: "hindi" },
+  { label: "Marathi (मराठी)", value: "marathi" },
+  { label: "Spanish (Español)", value: "spanish" },
+  { label: "French (Français)", value: "french" },
+  { label: "German (Deutsch)", value: "german" },
+  { label: "Chinese (中文)", value: "chinese" },
+  { label: "Japanese (日本語)", value: "japanese" },
+  { label: "Arabic (العربية)", value: "arabic" },
+  { label: "Russian (Русский)", value: "russian" },
+  { label: "Portuguese (Português)", value: "portuguese" },
+  { label: "Bengali (বাংলা)", value: "bengali" },
+  { label: "Telugu (తెలుగు)", value: "telugu" },
+  { label: "Tamil (தமிழ்)", value: "tamil" },
+  { label: "Gujarati (ગુજરાતી)", value: "gujarati" },
+  { label: "Kannada (ಕನ್ನಡ)", value: "kannada" },
+  { label: "Malayalam (മലയാളം)", value: "malayalam" },
+  { label: "Punjabi (ਪੰਜਾਬੀ)", value: "punjabi" },
 ];
 
 export default function SettingsPage() {
