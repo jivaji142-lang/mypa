@@ -1,6 +1,21 @@
 import { Link } from "wouter";
 import { useEffect, useState } from "react";
-import { Clock, Pill, Users } from "lucide-react";
+import { Clock } from "lucide-react";
+
+const AlarmClockIcon = () => (
+  <svg viewBox="0 0 100 100" className="w-20 h-20">
+    <circle cx="50" cy="55" r="32" fill="#e3f2fd" stroke="#1976d2" strokeWidth="3"/>
+    <circle cx="50" cy="55" r="26" fill="white" stroke="#1976d2" strokeWidth="2"/>
+    <line x1="50" y1="55" x2="50" y2="38" stroke="#1976d2" strokeWidth="3" strokeLinecap="round"/>
+    <line x1="50" y1="55" x2="62" y2="55" stroke="#1976d2" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="50" cy="55" r="3" fill="#1976d2"/>
+    <ellipse cx="25" cy="30" rx="10" ry="8" fill="#ffb74d" stroke="#f57c00" strokeWidth="2"/>
+    <ellipse cx="75" cy="30" rx="10" ry="8" fill="#ffb74d" stroke="#f57c00" strokeWidth="2"/>
+    <rect x="45" y="18" width="10" height="8" rx="2" fill="#1976d2"/>
+    <text x="82" y="28" fontSize="12" fill="#1976d2" fontWeight="bold">z</text>
+    <text x="88" y="22" fontSize="10" fill="#1976d2" fontWeight="bold">z</text>
+  </svg>
+);
 
 export default function Home() {
   const [time, setTime] = useState(new Date());
@@ -25,33 +40,9 @@ export default function Home() {
   };
 
   const cards = [
-    {
-      href: "/routine",
-      title: "Set Your Routine",
-      icon: Clock,
-      description: "Daily alarms & reminders",
-      gradient: "from-blue-500/10 to-cyan-500/10",
-      iconBg: "bg-blue-100",
-      iconColor: "text-blue-600"
-    },
-    {
-      href: "/medicines",
-      title: "Set Your Medicine",
-      icon: Pill,
-      description: "Medicine reminders",
-      gradient: "from-green-500/10 to-emerald-500/10",
-      iconBg: "bg-green-100",
-      iconColor: "text-green-600"
-    },
-    {
-      href: "/meetings",
-      title: "Set Your Meeting",
-      icon: Users,
-      description: "Meeting schedules",
-      gradient: "from-purple-500/10 to-pink-500/10",
-      iconBg: "bg-purple-100",
-      iconColor: "text-purple-600"
-    }
+    { href: "/routine", title: "Set Your Routine" },
+    { href: "/medicines", title: "Set Your Medicine" },
+    { href: "/meetings", title: "Set Your Meeting" }
   ];
 
   return (
@@ -86,30 +77,22 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-md space-y-4 pb-8">
-          {cards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link key={card.href} href={card.href} data-testid={`link-${card.href.slice(1)}`}>
-                <div 
-                  className={`bg-white rounded-2xl p-6 shadow-lg border border-slate-100 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-gradient-to-r ${card.gradient}`}
-                  data-testid={`card-${card.href.slice(1)}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-16 h-16 rounded-xl ${card.iconBg} flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                      <Icon className={`w-8 h-8 ${card.iconColor}`} />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-[#002E6E] italic">
-                        {card.title}
-                      </h2>
-                      <p className="text-sm text-slate-500">{card.description}</p>
-                    </div>
-                  </div>
+        <div className="w-full max-w-sm space-y-6 pb-8">
+          {cards.map((card) => (
+            <Link key={card.href} href={card.href} data-testid={`link-${card.href.slice(1)}`}>
+              <div 
+                className="bg-white rounded-2xl py-6 px-4 shadow-md border border-slate-100 hover:shadow-lg transition-all duration-300 cursor-pointer group text-center"
+                data-testid={`card-${card.href.slice(1)}`}
+              >
+                <div className="flex justify-center mb-3 group-hover:scale-105 transition-transform">
+                  <AlarmClockIcon />
                 </div>
-              </Link>
-            );
-          })}
+                <h2 className="text-lg font-bold text-[#002E6E] italic">
+                  {card.title}
+                </h2>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>
