@@ -1,26 +1,30 @@
 import Layout from "@/components/layout";
 import { AlarmModal } from "@/components/alarm-modal";
 import { useAlarms, useDeleteAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
+import { useMedicines } from "@/hooks/use-medicines";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Mic, MessageSquare, PlayCircle, Loader2, Edit2, Calendar } from "lucide-react";
+import { Trash2, Mic, MessageSquare, PlayCircle, Loader2, Edit2, Calendar, Pill } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
 export default function Dashboard() {
-  const { data: alarms, isLoading, error } = useAlarms();
+  const { data: alarms, isLoading: alarmsLoading } = useAlarms();
+  const { data: medicines, isLoading: medsLoading } = useMedicines();
   const deleteAlarm = useDeleteAlarm();
   const updateAlarm = useUpdateAlarm();
   const [activeAlarms, setActiveAlarms] = useState<Set<number>>(new Set());
+  const [activeMeds, setActiveMeds] = useState<Set<number>>(new Set());
 
   // Real-time alarm checker
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
       const currentTime = format(now, "HH:mm");
-      const currentDay = format(now, "EEE"); // Mon, Tue...
+      const currentDay = format(now, "EEE"); 
       const currentDate = format(now, "yyyy-MM-dd");
 
+      // Check Alarms
       alarms?.forEach(alarm => {
         if (!alarm.isActive) return;
 
@@ -30,16 +34,11 @@ export default function Dashboard() {
 
         if (isTimeMatch && (isDayMatch || isDateMatch || (!alarm.days?.length && !alarm.date))) {
           if (!activeAlarms.has(alarm.id)) {
-            triggerAlarm(alarm);
+            triggerAlarm(alarm, 'alarm');
             setActiveAlarms(prev => new Set(prev).add(alarm.id));
-            
-            // Auto-disable if it's a specific date alarm
-            if (isDateMatch) {
-              updateAlarm.mutate({ id: alarm.id, isActive: false });
-            }
+            if (isDateMatch) updateAlarm.mutate({ id: alarm.id, isActive: false });
           }
         } else if (activeAlarms.has(alarm.id)) {
-          // Reset when time passes
           setActiveAlarms(prev => {
             const next = new Set(prev);
             next.delete(alarm.id);
@@ -47,64 +46,93 @@ export default function Dashboard() {
           });
         }
       });
+
+      // Check Medicines
+      medicines?.forEach(med => {
+        const isTimeMatch = med.times?.includes(currentTime);
+        if (isTimeMatch) {
+          if (!activeMeds.has(med.id)) {
+            triggerAlarm(med, 'medicine');
+            setActiveMeds(prev => new Set(prev).add(med.id));
+          }
+        } else if (activeMeds.has(med.id)) {
+          setActiveMeds(prev => {
+            const next = new Set(prev);
+            next.delete(med.id);
+            return next;
+          });
+        }
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [alarms, activeAlarms]);
+  }, [alarms, medicines, activeAlarms, activeMeds]);
 
-  const triggerAlarm = (alarm: any) => {
-    console.log("Triggering alarm:", alarm.id);
-    const duration = (alarm.duration || 30) * 1000;
-    const shouldLoop = alarm.loop !== false;
+  const triggerAlarm = (item: any, type: 'alarm' | 'medicine') => {
+    console.log(`Triggering ${type}:`, item.id);
+    const duration = (item.duration || 30) * 1000;
+    const shouldLoop = item.loop !== false;
     let stopTimeout: any;
 
-    const stopAlarm = () => {
+    const stopTrigger = () => {
       window.speechSynthesis.cancel();
-      setActiveAlarms(prev => {
-        const next = new Set(prev);
-        next.delete(alarm.id);
-        return next;
-      });
+      if (type === 'alarm') {
+        setActiveAlarms(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      } else {
+        setActiveMeds(prev => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      }
       if (stopTimeout) clearTimeout(stopTimeout);
     };
 
-    // Play sound/TTS
-    if (alarm.type === "custom_voice" && alarm.voiceUrl) {
-      const audio = new Audio(alarm.voiceUrl);
+    if (item.type === "custom_voice" && item.voiceUrl) {
+      const audio = new Audio(item.voiceUrl);
       audio.loop = shouldLoop;
       audio.play().catch(err => {
         console.error("Audio playback failed:", err);
-        if (alarm.textToSpeak) speakTTS(alarm, shouldLoop);
+        if (item.textToSpeak) speakTTS(item, type, shouldLoop);
       });
       
       stopTimeout = setTimeout(() => {
         audio.pause();
         audio.src = "";
-        stopAlarm();
+        stopTrigger();
       }, duration);
 
-    } else if (alarm.textToSpeak) {
-      speakTTS(alarm, shouldLoop);
-      stopTimeout = setTimeout(stopAlarm, duration);
+    } else if (item.textToSpeak || type === 'medicine') {
+      const msg = item.textToSpeak || (type === 'medicine' ? `Time for your medicine: ${item.name}` : "");
+      if (msg) {
+        speakTTS({ ...item, textToSpeak: msg }, type, shouldLoop);
+        stopTimeout = setTimeout(stopTrigger, duration);
+      }
     }
   };
 
-  const speakTTS = (alarm: any, shouldLoop: boolean = true) => {
+  const speakTTS = (item: any, type: 'alarm' | 'medicine', shouldLoop: boolean = true) => {
     const speak = () => {
-      if (!activeAlarms.has(alarm.id)) return; // Don't speak if alarm was stopped
+      const isActive = type === 'alarm' ? activeAlarms.has(item.id) : activeMeds.has(item.id);
+      if (!isActive) return;
       
-      const utterance = new SpeechSynthesisUtterance(alarm.textToSpeak || "");
-      utterance.lang = alarm.language === 'hindi' ? 'hi-IN' : alarm.language === 'marathi' ? 'mr-IN' : 'en-US';
+      const utterance = new SpeechSynthesisUtterance(item.textToSpeak || "");
+      utterance.lang = item.language === 'hindi' ? 'hi-IN' : item.language === 'marathi' ? 'mr-IN' : 'en-US';
       
       const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(alarm.voiceGender === 'female' ? 'Female' : 'Male')) || 
+      const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(item.voiceGender === 'male' ? 'Male' : 'Female')) || 
                       voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)));
       
       if (preferred) utterance.voice = preferred;
       
       utterance.onend = () => {
-        if (shouldLoop && activeAlarms.has(alarm.id)) {
-          setTimeout(speak, 500); // Small delay before next loop
+        const stillActive = type === 'alarm' ? activeAlarms.has(item.id) : activeMeds.has(item.id);
+        if (shouldLoop && stillActive) {
+          setTimeout(speak, 500);
         }
       };
 
@@ -115,7 +143,7 @@ export default function Dashboard() {
     speak();
   };
 
-  if (isLoading) {
+  if (alarmsLoading || medsLoading) {
     return (
       <Layout>
         <div className="flex h-[80vh] items-center justify-center">

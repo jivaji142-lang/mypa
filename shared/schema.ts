@@ -55,9 +55,17 @@ export const medicines = pgTable("medicines", {
   userId: varchar("user_id").notNull(),
   name: text("name").notNull(),
   photoUrl: text("photo_url"),
-  timeOfDay: text("time_of_day"), // Keep for backward compatibility or migration
-  times: text("times").array(), // Multiple times per day ["08:00", "14:00", "20:00"]
+  timeOfDay: text("time_of_day"), 
+  times: text("times").array(), 
   dosage: text("dosage"),
+  isActive: boolean("is_active").default(true),
+  type: text("type").default("speaking"),
+  voiceUrl: text("voice_url"),
+  textToSpeak: text("text_to_speak"),
+  voiceGender: text("voice_gender").default("female"),
+  language: text("language").default("english"),
+  duration: integer("duration").default(30),
+  loop: boolean("loop").default(true),
 });
 
 export const insertUserSchema = createInsertSchema(users);

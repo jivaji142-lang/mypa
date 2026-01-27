@@ -2,10 +2,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Pill, Plus, Loader2, Camera, Image as ImageIcon, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCreateMedicine, useUpdateMedicine } from "@/hooks/use-medicines";
 import { useUpload } from "@/hooks/use-upload";
+import { VoiceRecorder } from "@/components/voice-recorder";
+import { Checkbox } from "@/components/ui/checkbox";
+
+const LANGUAGES = [
+  { label: "English", value: "english" },
+  { label: "Hindi", value: "hindi" },
+  { label: "Marathi", value: "marathi" },
+];
 
 interface MedicineModalProps {
   medicine?: any;
@@ -23,6 +33,13 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
     dosage: "",
     times: ["08:00"],
     photoUrl: "",
+    type: "speaking",
+    textToSpeak: "",
+    voiceGender: "female",
+    voiceUrl: "",
+    language: "english",
+    duration: 30,
+    loop: true,
   });
 
   useEffect(() => {
@@ -32,6 +49,13 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
         dosage: medicine.dosage || "",
         times: medicine.times || (medicine.timeOfDay ? [medicine.timeOfDay] : ["08:00"]),
         photoUrl: medicine.photoUrl || "",
+        type: medicine.type || "speaking",
+        textToSpeak: medicine.textToSpeak || "",
+        voiceGender: medicine.voiceGender || "female",
+        voiceUrl: medicine.voiceUrl || "",
+        language: medicine.language || "english",
+        duration: medicine.duration || 30,
+        loop: medicine.loop !== undefined ? medicine.loop : true,
       });
     }
   }, [medicine, open]);
@@ -54,12 +78,21 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'voiceUrl' | 'photoUrl') => {
     const file = e.target.files?.[0];
     if (file) {
+      if (field === 'voiceUrl' || field === 'photoUrl') {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, [field]: reader.result as string }));
+        };
+      }
       upload.mutate(file, {
         onSuccess: (data) => {
-          setFormData(prev => ({ ...prev, photoUrl: data.url }));
+          if (field === 'photoUrl') {
+            setFormData(prev => ({ ...prev, photoUrl: data.url }));
+          }
         }
       });
     }
@@ -120,6 +153,20 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label>Language</Label>
+              <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
+                <SelectTrigger className="royal-input">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LANGUAGES.map(lang => (
+                    <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-3">
               <Label className="flex justify-between items-center">
                 <span>Dose Times</span>
@@ -153,6 +200,72 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
             </div>
 
             <div className="space-y-3">
+              <Label>Alarm Type</Label>
+              <RadioGroup 
+                value={formData.type} 
+                onValueChange={val => setFormData({ ...formData, type: val })}
+                className="grid grid-cols-3 gap-3"
+              >
+                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
+                  <RadioGroupItem value="speaking" id="med-speaking" />
+                  <Label htmlFor="med-speaking" className="cursor-pointer text-xs">Speaking</Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
+                  <RadioGroupItem value="custom_voice" id="med-custom" />
+                  <Label htmlFor="med-custom" className="cursor-pointer text-xs">My Voice</Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-blue-50 cursor-pointer transition-colors has-[:checked]:bg-blue-50 has-[:checked]:border-[#00BAF2]">
+                  <RadioGroupItem value="text" id="med-text" />
+                  <Label htmlFor="med-text" className="cursor-pointer text-xs">Text Msg</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {formData.type === "custom_voice" && (
+              <VoiceRecorder 
+                onRecordingComplete={(blob) => {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(blob);
+                  reader.onloadend = () => {
+                    setFormData(prev => ({ ...prev, voiceUrl: reader.result as string }));
+                  };
+                  upload.mutate(blob);
+                }} 
+                isUploading={upload.isPending} 
+              />
+            )}
+
+            {(formData.type === "speaking" || formData.type === "text") && (
+              <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div className="space-y-2">
+                  <Label>Message to Speak</Label>
+                  <Input 
+                    value={formData.textToSpeak || ""}
+                    onChange={e => setFormData({ ...formData, textToSpeak: e.target.value })}
+                    placeholder={formData.type === "text" ? "Take your medicine..." : "Time for medicine..."}
+                    className="royal-input"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Voice Preference</Label>
+                  <Select 
+                    value={formData.voiceGender || "female"} 
+                    onValueChange={val => setFormData({ ...formData, voiceGender: val })}
+                  >
+                    <SelectTrigger className="royal-input">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3">
               <Label>Medicine Photo</Label>
               <div className="flex gap-4">
                 <Button 
@@ -177,14 +290,14 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
                   accept="image/*" 
                   capture="environment" 
                   className="hidden" 
-                  onChange={handleFileUpload}
+                  onChange={(e) => handleFileUpload(e, 'photoUrl')}
                 />
                 <input 
                   id="med-gallery" 
                   type="file" 
                   accept="image/*" 
                   className="hidden" 
-                  onChange={handleFileUpload}
+                  onChange={(e) => handleFileUpload(e, 'photoUrl')}
                 />
               </div>
               {formData.photoUrl && (
@@ -201,6 +314,28 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
                   </Button>
                 </div>
               )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Stop After (Seconds)</Label>
+                <Input 
+                  type="number"
+                  value={formData.duration}
+                  onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                  className="royal-input num"
+                  min="5"
+                  max="300"
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-8">
+                <Checkbox 
+                  id="med-loop" 
+                  checked={formData.loop} 
+                  onCheckedChange={(checked) => setFormData({ ...formData, loop: !!checked })}
+                />
+                <Label htmlFor="med-loop" className="cursor-pointer">Loop Sound</Label>
+              </div>
             </div>
           </div>
 
