@@ -40,6 +40,8 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
     voiceUrl: "",
     imageUrl: "",
     language: "english",
+    duration: 30,
+    loop: true,
   });
 
   useEffect(() => {
@@ -55,6 +57,8 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
         voiceUrl: alarm.voiceUrl || "",
         imageUrl: alarm.imageUrl || "",
         language: alarm.language || "english",
+        duration: alarm.duration || 30,
+        loop: alarm.loop !== undefined ? alarm.loop : true,
       });
     }
   }, [alarm, open]);
@@ -296,6 +300,28 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
               </div>
             </div>
           )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Stop After (Seconds)</Label>
+              <Input 
+                type="number"
+                value={formData.duration}
+                onChange={e => setFormData({ ...formData, duration: parseInt(e.target.value) })}
+                className="royal-input num"
+                min="5"
+                max="300"
+              />
+            </div>
+            <div className="flex items-center space-x-2 pt-8">
+              <Checkbox 
+                id="loop" 
+                checked={formData.loop} 
+                onCheckedChange={(checked) => setFormData({ ...formData, loop: !!checked })}
+              />
+              <Label htmlFor="loop" className="cursor-pointer">Loop Sound</Label>
+            </div>
+          </div>
 
           <Button 
             type="submit" 

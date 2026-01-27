@@ -54,32 +54,63 @@ export default function Dashboard() {
 
   const triggerAlarm = (alarm: any) => {
     console.log("Triggering alarm:", alarm.id);
+    const duration = (alarm.duration || 30) * 1000;
+    const shouldLoop = alarm.loop !== false;
+    let stopTimeout: any;
+
+    const stopAlarm = () => {
+      window.speechSynthesis.cancel();
+      setActiveAlarms(prev => {
+        const next = new Set(prev);
+        next.delete(alarm.id);
+        return next;
+      });
+      if (stopTimeout) clearTimeout(stopTimeout);
+    };
+
     // Play sound/TTS
     if (alarm.voiceUrl) {
       const audio = new Audio(alarm.voiceUrl);
+      audio.loop = shouldLoop;
       audio.play().catch(err => {
         console.error("Audio playback failed:", err);
-        // Fallback to TTS if audio fails
-        if (alarm.textToSpeak) speakTTS(alarm);
+        if (alarm.textToSpeak) speakTTS(alarm, shouldLoop);
       });
+      
+      stopTimeout = setTimeout(() => {
+        audio.pause();
+        audio.src = "";
+        stopAlarm();
+      }, duration);
+
     } else if (alarm.textToSpeak) {
-      speakTTS(alarm);
+      speakTTS(alarm, shouldLoop);
+      stopTimeout = setTimeout(stopAlarm, duration);
     }
   };
 
-  const speakTTS = (alarm: any) => {
-    const utterance = new SpeechSynthesisUtterance(alarm.textToSpeak || "");
-    utterance.lang = alarm.language === 'hindi' ? 'hi-IN' : alarm.language === 'marathi' ? 'mr-IN' : 'en-US';
-    
-    // Ensure speech synthesis is ready
+  const speakTTS = (alarm: any, shouldLoop: boolean = true) => {
+    const speak = () => {
+      const utterance = new SpeechSynthesisUtterance(alarm.textToSpeak || "");
+      utterance.lang = alarm.language === 'hindi' ? 'hi-IN' : alarm.language === 'marathi' ? 'mr-IN' : 'en-US';
+      
+      const voices = window.speechSynthesis.getVoices();
+      const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(alarm.voiceGender === 'female' ? 'Female' : 'Male')) || 
+                      voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)));
+      
+      if (preferred) utterance.voice = preferred;
+      
+      utterance.onend = () => {
+        if (shouldLoop && activeAlarms.has(alarm.id)) {
+          speak();
+        }
+      };
+
+      window.speechSynthesis.speak(utterance);
+    };
+
     window.speechSynthesis.cancel(); 
-    
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(alarm.voiceGender === 'female' ? 'Female' : 'Male')) || 
-                    voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)));
-    
-    if (preferred) utterance.voice = preferred;
-    window.speechSynthesis.speak(utterance);
+    speak();
   };
 
   if (isLoading) {

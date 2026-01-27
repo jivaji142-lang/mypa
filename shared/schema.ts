@@ -46,6 +46,8 @@ export const alarms = pgTable("alarms", {
   textToSpeak: text("text_to_speak"),
   voiceGender: text("voice_gender").default("female"), // male, female
   language: text("language").default("english"), // Added language support
+  duration: integer("duration").default(30), // Duration in seconds to play
+  loop: boolean("loop").default(true), // Whether to loop the audio/TTS
 });
 
 export const medicines = pgTable("medicines", {
