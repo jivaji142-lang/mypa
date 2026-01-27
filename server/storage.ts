@@ -1,9 +1,10 @@
 import { db } from "./db";
 import {
-  users, alarms, medicines,
+  users, alarms, medicines, meetings,
   type User, type InsertUser,
   type Alarm, type InsertAlarm,
-  type Medicine, type InsertMedicine
+  type Medicine, type InsertMedicine,
+  type Meeting, type InsertMeeting
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -20,6 +21,11 @@ export interface IStorage {
   getMedicines(userId: string): Promise<Medicine[]>;
   createMedicine(medicine: InsertMedicine): Promise<Medicine>;
   deleteMedicine(id: number): Promise<void>;
+
+  getMeetings(userId: string): Promise<Meeting[]>;
+  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
+  updateMeeting(id: number, meeting: Partial<InsertMeeting>): Promise<Meeting>;
+  deleteMeeting(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -90,6 +96,28 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!updatedUser) throw new Error("User not found");
     return updatedUser;
+  }
+
+  async getMeetings(userId: string): Promise<Meeting[]> {
+    return await db.select().from(meetings).where(eq(meetings.userId, userId));
+  }
+
+  async createMeeting(meeting: InsertMeeting): Promise<Meeting> {
+    const [newMeeting] = await db.insert(meetings).values(meeting).returning();
+    return newMeeting;
+  }
+
+  async updateMeeting(id: number, meeting: Partial<InsertMeeting>): Promise<Meeting> {
+    const [updatedMeeting] = await db
+      .update(meetings)
+      .set(meeting)
+      .where(eq(meetings.id, id))
+      .returning();
+    return updatedMeeting;
+  }
+
+  async deleteMeeting(id: number): Promise<void> {
+    await db.delete(meetings).where(eq(meetings.id, id));
   }
 }
 

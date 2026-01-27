@@ -1,12 +1,23 @@
-# PA Alarm - Personal Voice Assistant
+# MyPA - Your Personal Assistant
 
 ## Overview
 
-PA Alarm is a personal voice assistant application for managing alarms and medicine reminders. The app features speaking alarms with custom voice recordings, medicine tracking with photo support, and multi-language support (English, Hindi, Marathi). Built with a React frontend and Express backend using PostgreSQL for data persistence.
+MyPA is a personal voice assistant Progressive Web App (PWA) for managing daily routines, medicine reminders, and meetings. The app features speaking alarms with custom voice recordings, medicine tracking with photo support, meeting scheduling, and multi-language support for 18+ global languages (English, Hindi, Marathi, Spanish, French, German, Chinese, Japanese, Arabic, Russian, Portuguese, Bengali, Telugu, Tamil, Gujarati, Kannada, Malayalam, Punjabi). Built with a React frontend and Express backend using PostgreSQL for data persistence.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes (January 2026)
+
+- Rebranded app from "PA Alarm" to "MyPA"
+- Renamed "My Alarms" section to "My Routine"
+- Added new Home page with large clock display, day indicator, and three option cards
+- Added new Meetings feature with full CRUD operations
+- Expanded language support to 18 major world languages with global settings
+- Fixed alarm system with 12-hour time format (AM/PM)
+- Implemented active alarm popup with image display, TTS, and snooze functionality
+- Fixed image upload to use base64 encoding for unlimited size support
 
 ## System Architecture
 
@@ -18,6 +29,13 @@ Preferred communication style: Simple, everyday language.
 - **Styling**: Tailwind CSS with custom royal blue theme (Paytm-inspired #002E6E to #00BAF2 gradients)
 - **Typography**: Cambria serif font with italic text by default, non-italic numbers
 - **Build Tool**: Vite with HMR support
+
+### Page Structure
+- **Home** (`/`) - Main dashboard with clock display and navigation cards
+- **My Routine** (`/routine`) - Alarm and routine management
+- **My Medicines** (`/medicines`) - Medicine reminders with photo support
+- **My Meetings** (`/meetings`) - Meeting scheduling and management
+- **Settings** (`/settings`) - Language preferences and user settings
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript
@@ -36,18 +54,28 @@ Preferred communication style: Simple, everyday language.
   - `users` - User profiles with subscription status and language preferences
   - `alarms` - Alarm configurations with voice/image support, recurring days, or specific dates
   - `medicines` - Medicine reminders with photo and dosage tracking
+  - `meetings` - Meeting schedules with date, time, location, and participants
 - **Migrations**: Drizzle Kit with `db:push` command
 
 ### API Structure
 - Typed API routes defined in `shared/routes.ts` with Zod schemas
-- CRUD endpoints for alarms (`/api/alarms`) and medicines (`/api/medicines`)
+- CRUD endpoints for alarms (`/api/alarms`), medicines (`/api/medicines`), and meetings (`/api/meetings`)
 - File upload endpoint (`/api/upload`) for voice recordings and images
+- User settings endpoint (`/api/user/settings`) for language preferences
 - Auth endpoints via Replit Auth (`/api/login`, `/api/logout`, `/api/auth/user`)
 
 ### Shared Code
 - `shared/schema.ts` - Database schemas and Zod validation types
 - `shared/routes.ts` - API route definitions with input/output schemas
 - Path aliases: `@/` for client, `@shared/` for shared code
+
+## Alarm Types
+
+The app supports four alarm types:
+1. **Speaking** - Text-to-speech announcements in selected language
+2. **My Voice** - Custom recorded voice messages
+3. **Music** - Custom audio file playback
+4. **Vibration** - Device vibration patterns
 
 ## External Dependencies
 
@@ -63,7 +91,7 @@ Preferred communication style: Simple, everyday language.
 - TanStack React Query for data fetching
 - Radix UI primitives for accessible components
 - date-fns for date formatting
-- Framer Motion for animations (in requirements)
+- Lucide React for icons
 
 ### Development Tools
 - Vite with React plugin

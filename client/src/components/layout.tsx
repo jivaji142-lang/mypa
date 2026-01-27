@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Bell, Pill, Settings, LogOut, Menu, X } from "lucide-react";
+import { Bell, Pill, Settings, LogOut, Menu, X, Home, Users } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
@@ -11,15 +11,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
 
   const navItems = [
-    { href: "/", label: "Alarms", icon: Bell },
-    { href: "/medicines", label: "Medicines", icon: Pill },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/routine", label: "My Routine", icon: Bell },
+    { href: "/medicines", label: "My Medicines", icon: Pill },
+    { href: "/meetings", label: "My Meetings", icon: Users },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   const NavContent = () => (
     <>
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-white mb-1 tracking-wide">PA Alarm</h1>
+        <h1 className="text-2xl font-bold text-white mb-1 tracking-wide">MyPA</h1>
         <p className="text-blue-200 text-sm">Your Personal Assistant</p>
       </div>
       
@@ -74,7 +76,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 shadow-md" style={{ background: 'linear-gradient(135deg, #002E6E 0%, #001a40 100%)' }}>
-        <h1 className="text-xl font-bold text-white">PA Alarm</h1>
+        <h1 className="text-xl font-bold text-white">MyPA</h1>
         <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-white p-2">
           {mobileMenuOpen ? <X /> : <Menu />}
         </button>

@@ -78,7 +78,7 @@ export async function registerRoutes(
     try {
       const input = {
         ...req.body,
-        userId: req.user.id
+        userId: (req.user as any).id
       };
       const medicine = await storage.createMedicine(input);
       res.status(201).json(medicine);
@@ -112,6 +112,57 @@ export async function registerRoutes(
   app.delete(api.medicines.delete.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     await storage.deleteMedicine(Number(req.params.id));
+    res.status(204).end();
+  });
+
+  // Meetings
+  app.get(api.meetings.list.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const meetings = await storage.getMeetings((req.user as any).id);
+    res.json(meetings);
+  });
+
+  app.post(api.meetings.create.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const validated = api.meetings.create.input.parse(req.body);
+      const input = {
+        ...validated,
+        userId: (req.user as any).id
+      };
+      const meeting = await storage.createMeeting(input);
+      res.status(201).json(meeting);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+        return;
+      }
+      throw err;
+    }
+  });
+
+  app.patch(api.meetings.update.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    try {
+      const validated = api.meetings.update.input.parse(req.body);
+      const input = {
+        ...validated,
+        userId: (req.user as any).id
+      };
+      const meeting = await storage.updateMeeting(Number(req.params.id), input);
+      res.json(meeting);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+        return;
+      }
+      res.status(404).json({ message: "Meeting not found" });
+    }
+  });
+
+  app.delete(api.meetings.delete.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    await storage.deleteMeeting(Number(req.params.id));
     res.status(204).end();
   });
 

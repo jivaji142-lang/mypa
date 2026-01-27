@@ -65,9 +65,23 @@ export const medicines = pgTable("medicines", {
   loop: boolean("loop").default(true),
 });
 
+export const meetings = pgTable("meetings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  title: text("title").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  time: text("time").notNull(), // HH:mm format
+  location: text("location"),
+  description: text("description"),
+  participants: text("participants"),
+  textToSpeak: text("text_to_speak"),
+  enabled: boolean("enabled").default(true),
+});
+
 export const insertUserSchema = createInsertSchema(users);
 export const insertAlarmSchema = createInsertSchema(alarms).omit({ id: true });
 export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
+export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -75,3 +89,5 @@ export type Alarm = typeof alarms.$inferSelect;
 export type InsertAlarm = z.infer<typeof insertAlarmSchema>;
 export type Medicine = typeof medicines.$inferSelect;
 export type InsertMedicine = z.infer<typeof insertMedicineSchema>;
+export type Meeting = typeof meetings.$inferSelect;
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;

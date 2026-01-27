@@ -6,8 +6,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
 
-import Dashboard from "@/pages/dashboard";
+import Home from "@/pages/home";
+import Routine from "@/pages/routine";
 import Medicines from "@/pages/medicines";
+import Meetings from "@/pages/meetings";
 import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
@@ -29,8 +31,10 @@ function Router() {
 
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Home} />
+      <Route path="/routine" component={Routine} />
       <Route path="/medicines" component={Medicines} />
+      <Route path="/meetings" component={Meetings} />
       <Route path="/settings" component={Settings} />
       <Route component={NotFound} />
     </Switch>

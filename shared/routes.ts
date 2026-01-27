@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertAlarmSchema, insertMedicineSchema, alarms, medicines } from './schema';
+import { insertAlarmSchema, insertMedicineSchema, insertMeetingSchema, alarms, medicines, meetings } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -79,6 +79,41 @@ export const api = {
     delete: {
       method: 'DELETE' as const,
       path: '/api/medicines/:id',
+      responses: {
+        204: z.void(),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  meetings: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/meetings',
+      responses: {
+        200: z.array(z.custom<typeof meetings.$inferSelect>()),
+      },
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/meetings',
+      input: insertMeetingSchema,
+      responses: {
+        201: z.custom<typeof meetings.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/meetings/:id',
+      input: insertMeetingSchema.partial(),
+      responses: {
+        200: z.custom<typeof meetings.$inferSelect>(),
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/meetings/:id',
       responses: {
         204: z.void(),
         404: errorSchemas.notFound,
