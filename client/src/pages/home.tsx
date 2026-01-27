@@ -204,7 +204,7 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col items-center px-4">
         <div className="text-center mb-8 mt-4">
-          <div className="flex items-baseline justify-center gap-2">
+          <div className="relative inline-block">
             <span 
               className="text-7xl md:text-8xl font-bold text-[#002E6E] tracking-tight"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
@@ -213,20 +213,13 @@ export default function Home() {
               {formatTime(time)}
             </span>
             <span 
-              className="text-2xl md:text-3xl font-semibold text-[#00BAF2]"
+              className="absolute -top-1 -right-14 md:-right-16 text-base md:text-lg font-semibold text-[#002E6E]/70"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
               data-testid="text-ampm"
             >
-              {getAmPm(time)}
+              {getDayName(time)}
             </span>
           </div>
-          <p 
-            className="text-lg md:text-xl text-[#002E6E]/60 mt-2 font-medium"
-            style={{ fontFamily: 'Cambria, Georgia, serif' }}
-            data-testid="text-day-name"
-          >
-            {getDayName(time)}
-          </p>
         </div>
 
         <div className="w-full max-w-sm space-y-6 pb-8">
