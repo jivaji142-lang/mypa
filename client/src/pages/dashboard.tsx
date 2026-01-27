@@ -7,8 +7,10 @@ import { Trash2, Mic, MessageSquare, PlayCircle, Loader2, Edit2, Calendar, Pill 
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const { data: alarms, isLoading: alarmsLoading } = useAlarms();
   const { data: medicines, isLoading: medsLoading } = useMedicines();
   const deleteAlarm = useDeleteAlarm();
@@ -121,7 +123,8 @@ export default function Dashboard() {
       if (!isActive) return;
       
       const utterance = new SpeechSynthesisUtterance(item.textToSpeak || "");
-      utterance.lang = item.language === 'hindi' ? 'hi-IN' : item.language === 'marathi' ? 'mr-IN' : 'en-US';
+      const lang = user?.language || item.language || 'english';
+      utterance.lang = lang === 'hindi' ? 'hi-IN' : lang === 'marathi' ? 'mr-IN' : 'en-US';
       
       const voices = window.speechSynthesis.getVoices();
       const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(item.voiceGender === 'male' ? 'Male' : 'Female')) || 

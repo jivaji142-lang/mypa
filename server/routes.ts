@@ -115,6 +115,13 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // User Settings
+  app.patch("/api/user/settings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = await storage.updateUser((req.user as any).id, req.body);
+    res.json(user);
+  });
+
   // Upload (Mock)
   app.post(api.upload.create.path, async (req, res) => {
     // In a real app, use multer to save to disk or S3

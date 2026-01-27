@@ -153,20 +153,6 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Language</Label>
-              <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
-                <SelectTrigger className="royal-input">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LANGUAGES.map(lang => (
-                    <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
             <div className="space-y-3">
               <Label className="flex justify-between items-center">
                 <span>Dose Times</span>

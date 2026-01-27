@@ -153,29 +153,14 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
 
           <div className="space-y-3">
             <Label>Schedule Type</Label>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Specific Date (Optional)</Label>
-                <Input 
-                  type="date"
-                  value={formData.date}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  className="royal-input"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-500">Language</Label>
-                <Select value={formData.language} onValueChange={val => setFormData({ ...formData, language: val })}>
-                  <SelectTrigger className="royal-input">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LANGUAGES.map(lang => (
-                      <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="space-y-2">
+              <Label className="text-xs text-slate-500">Specific Date (Optional)</Label>
+              <Input 
+                type="date"
+                value={formData.date}
+                onChange={e => setFormData({ ...formData, date: e.target.value })}
+                className="royal-input"
+              />
             </div>
             
             <div className="space-y-2 pt-2">

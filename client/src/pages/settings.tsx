@@ -1,43 +1,82 @@
 import Layout from "@/components/layout";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/hooks/use-auth";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Check, Crown, Globe } from "lucide-react";
-import { useState } from "react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Globe, Check, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function Settings() {
-  const [language, setLanguage] = useState("english");
+const LANGUAGES = [
+  { label: "English", value: "english" },
+  { label: "Hindi", value: "hindi" },
+  { label: "Marathi", value: "marathi" },
+];
+
+export default function SettingsPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const mutation = useMutation({
+    mutationFn: async (language: string) => {
+      const res = await apiRequest("PATCH", "/api/user/settings", { language });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({
+        title: "Settings Updated",
+        description: "Your language preference has been saved.",
+      });
+    },
+  });
 
   return (
     <Layout>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-[#002E6E] mb-2">Settings</h1>
-        <p className="text-slate-500 text-lg">Customize your assistant.</p>
+        <p className="text-slate-500 text-lg">Manage your global preferences.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Language Settings */}
         <section className="space-y-6">
           <div className="royal-card p-6">
-            <h3 className="text-xl font-bold text-[#002E6E] mb-6 flex items-center gap-2">
-              <Globe className="w-5 h-5 text-[#00BAF2]" /> Language
-            </h3>
-            <div className="space-y-2">
-              <Label>App Language</Label>
-              <Select value={language} onValueChange={setLanguage}>
-                <SelectTrigger className="royal-input bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="hindi">Hindi (हिंदी)</SelectItem>
-                  <SelectItem value="marathi">Marathi (मराठी)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-slate-400 italic mt-2">
-                This will change the spoken language for alarms and interface.
-              </p>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center">
+                <Globe className="w-5 h-5 text-[#00BAF2]" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-[#002E6E]">Global Language</h3>
+                <p className="text-sm text-slate-400 font-serif italic">Choose your preferred language</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>App Language</Label>
+                <Select 
+                  value={user?.language || "english"} 
+                  onValueChange={(val) => mutation.mutate(val)}
+                  disabled={mutation.isPending}
+                >
+                  <SelectTrigger className="royal-input h-12">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map(lang => (
+                      <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {mutation.isPending && (
+                  <div className="flex items-center gap-2 text-[#00BAF2] text-sm font-serif italic mt-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Saving preference...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </section>
@@ -78,7 +117,7 @@ export default function Settings() {
               <div className="bg-white/10 rounded-xl p-4 flex justify-between items-center mb-6 border border-white/5">
                 <div>
                   <p className="text-sm text-blue-200">Current Plan</p>
-                  <p className="font-bold text-lg">30 Days Free Trial</p>
+                  <p className="font-bold text-lg">{user?.subscriptionStatus === 'active' ? 'Premium' : '30 Days Free Trial'}</p>
                 </div>
                 <span className="text-[#00BAF2] bg-[#00BAF2]/10 px-3 py-1 rounded-full text-sm font-bold border border-[#00BAF2]/20">Active</span>
               </div>
