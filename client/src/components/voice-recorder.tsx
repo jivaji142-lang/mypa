@@ -28,10 +28,14 @@ export function VoiceRecorder({ onRecordingComplete, isUploading }: VoiceRecorde
 
       mediaRecorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        setRecordedBlob(blob);
-        onRecordingComplete(blob); // Pass blob to parent immediately or on confirm
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          setAudioUrl(base64data);
+          setRecordedBlob(blob);
+          onRecordingComplete(blob); // Note: We still pass blob for upload, but we'll use base64 for local playback/storage if upload is mock
+        };
         stream.getTracks().forEach(track => track.stop());
       };
 

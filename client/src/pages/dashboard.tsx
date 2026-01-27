@@ -69,7 +69,7 @@ export default function Dashboard() {
     };
 
     // Play sound/TTS
-    if (alarm.voiceUrl) {
+    if (alarm.type === "custom_voice" && alarm.voiceUrl) {
       const audio = new Audio(alarm.voiceUrl);
       audio.loop = shouldLoop;
       audio.play().catch(err => {
@@ -91,6 +91,8 @@ export default function Dashboard() {
 
   const speakTTS = (alarm: any, shouldLoop: boolean = true) => {
     const speak = () => {
+      if (!activeAlarms.has(alarm.id)) return; // Don't speak if alarm was stopped
+      
       const utterance = new SpeechSynthesisUtterance(alarm.textToSpeak || "");
       utterance.lang = alarm.language === 'hindi' ? 'hi-IN' : alarm.language === 'marathi' ? 'mr-IN' : 'en-US';
       
@@ -102,7 +104,7 @@ export default function Dashboard() {
       
       utterance.onend = () => {
         if (shouldLoop && activeAlarms.has(alarm.id)) {
-          speak();
+          setTimeout(speak, 500); // Small delay before next loop
         }
       };
 

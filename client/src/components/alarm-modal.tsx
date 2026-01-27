@@ -84,9 +84,19 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'voiceUrl' | 'imageUrl') => {
     const file = e.target.files?.[0];
     if (file) {
+      if (field === 'voiceUrl') {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onloadend = () => {
+          setFormData(prev => ({ ...prev, voiceUrl: reader.result as string }));
+        };
+      }
       upload.mutate(file, {
         onSuccess: (data) => {
-          setFormData(prev => ({ ...prev, [field]: data.url }));
+          // Only overwrite if it's not a voiceUrl or if we want the server URL
+          if (field !== 'voiceUrl') {
+            setFormData(prev => ({ ...prev, [field]: data.url }));
+          }
         }
       });
     }
@@ -263,9 +273,12 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
           {formData.type === "custom_voice" && (
             <VoiceRecorder 
               onRecordingComplete={(blob) => {
-                upload.mutate(blob, {
-                  onSuccess: (data) => setFormData(prev => ({ ...prev, voiceUrl: data.url }))
-                });
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                  setFormData(prev => ({ ...prev, voiceUrl: reader.result as string }));
+                };
+                upload.mutate(blob);
               }} 
               isUploading={upload.isPending} 
             />
