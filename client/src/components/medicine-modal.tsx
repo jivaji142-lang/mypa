@@ -10,11 +10,27 @@ import { useCreateMedicine, useUpdateMedicine } from "@/hooks/use-medicines";
 import { useUpload } from "@/hooks/use-upload";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/use-auth";
 
 const LANGUAGES = [
   { label: "English", value: "english" },
-  { label: "Hindi", value: "hindi" },
-  { label: "Marathi", value: "marathi" },
+  { label: "Hindi (हिंदी)", value: "hindi" },
+  { label: "Marathi (मराठी)", value: "marathi" },
+  { label: "Spanish (Español)", value: "spanish" },
+  { label: "French (Français)", value: "french" },
+  { label: "German (Deutsch)", value: "german" },
+  { label: "Chinese (中文)", value: "chinese" },
+  { label: "Japanese (日本語)", value: "japanese" },
+  { label: "Arabic (العربية)", value: "arabic" },
+  { label: "Russian (Русский)", value: "russian" },
+  { label: "Portuguese (Português)", value: "portuguese" },
+  { label: "Bengali (বাংলা)", value: "bengali" },
+  { label: "Telugu (తెలుగు)", value: "telugu" },
+  { label: "Tamil (தமிழ்)", value: "tamil" },
+  { label: "Gujarati (ગુજરાતી)", value: "gujarati" },
+  { label: "Kannada (ಕನ್ನಡ)", value: "kannada" },
+  { label: "Malayalam (മലയാളം)", value: "malayalam" },
+  { label: "Punjabi (ਪੰਜਾਬੀ)", value: "punjabi" },
 ];
 
 interface MedicineModalProps {
@@ -23,6 +39,7 @@ interface MedicineModalProps {
 }
 
 export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const createMedicine = useCreateMedicine();
   const updateMedicine = useUpdateMedicine();
@@ -53,12 +70,27 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
         textToSpeak: medicine.textToSpeak || "",
         voiceGender: medicine.voiceGender || "female",
         voiceUrl: medicine.voiceUrl || "",
-        language: medicine.language || "english",
+        language: medicine.language || user?.language || "english",
         duration: medicine.duration || 30,
         loop: medicine.loop !== undefined ? medicine.loop : true,
       });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        name: "",
+        dosage: "",
+        times: ["08:00"],
+        photoUrl: "",
+        type: "speaking",
+        textToSpeak: "",
+        voiceGender: "female",
+        voiceUrl: "",
+        language: user?.language || "english",
+        duration: 30,
+        loop: true,
+      }));
     }
-  }, [medicine, open]);
+  }, [medicine, open, user?.language]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -10,6 +10,7 @@ import { useCreateAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
 import { useUpload } from "@/hooks/use-upload";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/use-auth";
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -19,6 +20,7 @@ interface AlarmModalProps {
 }
 
 export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const createAlarm = useCreateAlarm();
   const updateAlarm = useUpdateAlarm();
@@ -53,22 +55,37 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
         voiceGender: alarm.voiceGender || "female",
         voiceUrl: alarm.voiceUrl || "",
         imageUrl: alarm.imageUrl || "",
-        language: alarm.language || "english",
+        language: alarm.language || user?.language || "english",
         duration: alarm.duration || 30,
         loop: alarm.loop !== undefined ? alarm.loop : true,
       });
       setImagePreview(alarm.imageUrl || "");
     } else {
+      setFormData(prev => ({
+        ...prev,
+        title: "",
+        time: "07:00",
+        date: "",
+        days: [],
+        type: "speaking",
+        textToSpeak: "",
+        voiceGender: "female",
+        voiceUrl: "",
+        imageUrl: "",
+        language: user?.language || "english",
+        duration: 30,
+        loop: true,
+      }));
       setImagePreview("");
     }
-  }, [alarm, open]);
+  }, [alarm, open, user?.language]);
 
   const formatTimeTo12Hour = (time24: string) => {
     const [hours, minutes] = time24.split(':');
     const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dayNight = (h >= 6 && h < 18) ? 'Day' : 'Night';
     const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
+    return `${hour12}:${minutes} ${dayNight}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +161,7 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label>Time <span className="text-xs text-slate-400">(12-Hour)</span></Label>
+              <Label>Time <span className="text-xs text-slate-400">(Day/Night)</span></Label>
               <div className="relative">
                 <Input 
                   type="time" 

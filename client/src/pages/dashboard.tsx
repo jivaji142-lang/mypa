@@ -35,9 +35,9 @@ export default function Dashboard() {
   const formatTimeTo12Hour = (time24: string) => {
     const [hours, minutes] = time24.split(':');
     const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dayNight = (h >= 6 && h < 18) ? 'Day' : 'Night';
     const hour12 = h % 12 || 12;
-    return `${hour12}:${minutes} ${ampm}`;
+    return `${hour12}:${minutes} ${dayNight}`;
   };
 
   const sortedAlarms = alarms?.slice().sort((a, b) => {

@@ -114,9 +114,9 @@ export default function Meetings() {
   const formatTimeTo12Hour = (time24: string) => {
     const [hours, minutes] = time24.split(':');
     const h = parseInt(hours);
-    const ampm = h >= 12 ? 'PM' : 'AM';
+    const dayNight = (h >= 6 && h < 18) ? 'Day' : 'Night';
     const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
+    return `${h12}:${minutes} ${dayNight}`;
   };
 
   const sortedMeetings = [...meetings].sort((a, b) => {
