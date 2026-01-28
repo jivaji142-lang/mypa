@@ -108,45 +108,91 @@ export default function SettingsPage() {
                 <Crown className="w-8 h-8 text-yellow-400" />
                 <h3 className="text-2xl font-bold tracking-wide italic">{t.premium}</h3>
               </div>
-              <p className="text-blue-200 mb-8">{t.subscription}</p>
+              <p className="text-blue-200 mb-4">{t.subscription}</p>
 
-              <div className="space-y-4 mb-8">
+              {/* Premium Features */}
+              <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-[#00BAF2]" />
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
                   </div>
-                  <span>{t.speaking}</span>
+                  <span className="text-sm">Unlimited Alarms & Routines</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-[#00BAF2]" />
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
                   </div>
-                  <span>{t.myMedicines}</span>
+                  <span className="text-sm">Unlimited Medicine Reminders</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
-                    <Check className="w-4 h-4 text-[#00BAF2]" />
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
                   </div>
-                  <span>{t.myVoice}</span>
+                  <span className="text-sm">Unlimited Meeting Schedules</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span className="text-sm">18+ Languages Voice Support</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span className="text-sm">Custom Voice Recording</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span className="text-sm">Music & Vibration Alarms</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span className="text-sm">Photo Upload for Medicines</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
+                    <Check className="w-4 h-4 text-green-400" />
+                  </div>
+                  <span className="text-sm">Ad-Free Experience</span>
                 </div>
               </div>
 
+              {/* Current Plan Status */}
               <div className="bg-white/10 rounded-xl p-4 flex justify-between items-center mb-6 border border-white/5">
                 <div>
                   <p className="text-sm text-blue-200">{t.currentPlan}</p>
-                  <p className="font-bold text-lg">{user?.subscriptionStatus === 'active' ? t.premium : t.free}</p>
+                  <p className="font-bold text-lg">{user?.subscriptionStatus === 'active' ? t.premium : 'Free Trial'}</p>
                 </div>
-                <span className="text-[#00BAF2] bg-[#00BAF2]/10 px-3 py-1 rounded-full text-sm font-bold border border-[#00BAF2]/20">{t.active}</span>
+                <span className={`px-3 py-1 rounded-full text-sm font-bold border ${user?.subscriptionStatus === 'active' ? 'text-green-400 bg-green-500/10 border-green-500/20' : 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'}`}>
+                  {user?.subscriptionStatus === 'active' ? t.active : '1 Month Free'}
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <Button className="bg-white text-[#002E6E] hover:bg-blue-50 font-bold">
-                  ₹30 / Month
+              {/* Pricing Options */}
+              <div className="space-y-3">
+                <Button className="w-full bg-white text-[#002E6E] hover:bg-blue-50 font-bold h-14 text-lg" data-testid="button-subscribe-monthly">
+                  <div className="flex justify-between items-center w-full">
+                    <span>Monthly</span>
+                    <span className="num">₹45 / 30 Days</span>
+                  </div>
                 </Button>
-                <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                  ₹365 / Year
+                <Button className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-[#002E6E] hover:from-yellow-500 hover:to-orange-500 font-bold h-14 text-lg relative overflow-hidden" data-testid="button-subscribe-yearly">
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-bl-lg font-bold">SAVE 31%</div>
+                  <div className="flex justify-between items-center w-full">
+                    <span>Yearly</span>
+                    <span className="num">₹369 / Year</span>
+                  </div>
                 </Button>
               </div>
+
+              <p className="text-center text-blue-200 text-xs mt-4">
+                Start with 1 Month Free Trial • Cancel anytime
+              </p>
             </div>
           </div>
         </section>
