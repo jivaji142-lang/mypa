@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Globe, Check, Crown } from "lucide-react";
+import { Loader2, Globe, Check, Crown, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LANGUAGES = [
@@ -54,6 +54,36 @@ export default function SettingsPage() {
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-[#002E6E] mb-2">{t.settings}</h1>
         <p className="text-slate-500 text-lg">{t.chooseLanguage}</p>
+      </div>
+
+      {/* Account Section */}
+      <div className="royal-card p-6 mb-8">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-gradient-to-br from-[#002E6E] to-[#00BAF2] rounded-full flex items-center justify-center shadow-lg">
+              {user?.profileImageUrl ? (
+                <img src={user.profileImageUrl} alt="Profile" className="w-14 h-14 rounded-full object-cover" />
+              ) : (
+                <User className="w-7 h-7 text-white" />
+              )}
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-[#002E6E]">
+                {user?.firstName} {user?.lastName}
+              </h2>
+              <p className="text-slate-500 text-sm">{user?.email || user?.phone || 'User'}</p>
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+            onClick={() => window.location.href = '/api/logout'}
+            data-testid="button-logout"
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
