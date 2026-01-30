@@ -276,11 +276,18 @@ export async function registerRoutes(
     }
   });
 
-  // Phone OTP Authentication (placeholder - requires Twilio setup)
+  // Phone OTP Authentication with Fast2SMS
   app.post("/api/auth/send-otp", async (req, res) => {
     try {
       const validatedData = phoneSchema.parse(req.body);
-      const { phone } = validatedData;
+      let { phone } = validatedData;
+      
+      // Remove country code if present (Fast2SMS works with 10-digit Indian numbers)
+      phone = phone.replace(/^\+91/, '').replace(/^91/, '').replace(/\s/g, '');
+      
+      if (phone.length !== 10) {
+        return res.status(400).json({ message: "Please enter valid 10-digit mobile number" });
+      }
       
       // Generate 6-digit OTP
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -288,10 +295,27 @@ export async function registerRoutes(
       
       await storage.createOtp({ phone, code: otp, expiresAt });
       
-      // TODO: Integrate Twilio to send SMS
-      // OTP logged only in development, removed from response for security
-      if (process.env.NODE_ENV !== "production") {
-        console.log(`[DEV] OTP for ${phone}: ${otp}`);
+      // Send OTP via Fast2SMS
+      const fast2smsKey = process.env.FAST2SMS_API_KEY;
+      
+      if (fast2smsKey) {
+        try {
+          const response = await fetch(`https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&variables_values=${otp}&route=otp&numbers=${phone}`);
+          const result = await response.json();
+          
+          if (!result.return) {
+            console.error("Fast2SMS error:", result);
+            return res.status(500).json({ message: "Failed to send OTP. Please try again." });
+          }
+          
+          console.log(`OTP sent to ${phone}`);
+        } catch (smsError) {
+          console.error("SMS send error:", smsError);
+          return res.status(500).json({ message: "SMS service error. Please try again." });
+        }
+      } else {
+        // Development fallback - log OTP
+        console.log(`[DEV] OTP for ${phone}: ${otp} (Fast2SMS not configured)`);
       }
       
       res.json({ success: true, message: "OTP sent successfully" });
