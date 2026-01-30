@@ -3,10 +3,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/hooks/use-translations";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Globe, Check, Crown, LogOut, User } from "lucide-react";
+import { Loader2, Globe, Check, Crown, LogOut, User, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const LANGUAGES = [
@@ -35,6 +35,10 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const t = useTranslations();
 
+  const { data: productsData } = useQuery<{ products: { price_id: string; unit_amount: number; recurring: { interval: string } }[] }>({
+    queryKey: ["/api/stripe/products"],
+  });
+
   const mutation = useMutation({
     mutationFn: async (language: string) => {
       const res = await apiRequest("PATCH", "/api/user/settings", { language });
@@ -48,6 +52,48 @@ export default function SettingsPage() {
       });
     },
   });
+
+  const checkoutMutation = useMutation({
+    mutationFn: async (priceId: string) => {
+      const res = await apiRequest("POST", "/api/stripe/checkout", { priceId });
+      return res.json();
+    },
+    onSuccess: (data: { url: string }) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Could not start checkout. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/stripe/portal", {});
+      return res.json();
+    },
+    onSuccess: (data: { url: string }) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+  });
+
+  const monthlyPrice = productsData?.products?.find(p => p.recurring?.interval === 'month');
+  const yearlyPrice = productsData?.products?.find(p => p.recurring?.interval === 'year');
+
+  const handleSubscribe = (priceId: string) => {
+    if (!user) {
+      window.location.href = '/login';
+      return;
+    }
+    checkoutMutation.mutate(priceId);
+  };
 
   return (
     <Layout>
@@ -196,32 +242,91 @@ export default function SettingsPage() {
               <div className="bg-white/10 rounded-xl p-4 flex justify-between items-center mb-6 border border-white/5">
                 <div>
                   <p className="text-sm text-blue-200">{t.currentPlan}</p>
-                  <p className="font-bold text-lg">{user?.subscriptionStatus === 'active' ? t.premium : 'Free Trial'}</p>
+                  <p className="font-bold text-lg">
+                    {user?.subscriptionStatus === 'active' 
+                      ? t.premium 
+                      : user?.subscriptionStatus === 'trial' 
+                        ? 'Free Trial' 
+                        : 'Free Plan'}
+                  </p>
+                  {user?.subscriptionStatus === 'trial' && user?.trialEndsAt && (
+                    <p className="text-xs text-blue-300 mt-1">
+                      Ends: {new Date(user.trialEndsAt).toLocaleDateString()}
+                    </p>
+                  )}
                 </div>
-                <span className={`px-3 py-1 rounded-full text-sm font-bold border ${user?.subscriptionStatus === 'active' ? 'text-green-400 bg-green-500/10 border-green-500/20' : 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'}`}>
-                  {user?.subscriptionStatus === 'active' ? t.active : '1 Month Free'}
+                <span className={`px-3 py-1 rounded-full text-sm font-bold border ${
+                  user?.subscriptionStatus === 'active' 
+                    ? 'text-green-400 bg-green-500/10 border-green-500/20' 
+                    : user?.subscriptionStatus === 'trial'
+                      ? 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20'
+                      : 'text-gray-400 bg-gray-500/10 border-gray-500/20'
+                }`}>
+                  {user?.subscriptionStatus === 'active' 
+                    ? t.active 
+                    : user?.subscriptionStatus === 'trial' 
+                      ? '30 Days Free' 
+                      : 'Upgrade'}
                 </span>
               </div>
 
               {/* Pricing Options */}
-              <div className="space-y-3">
-                <Button className="w-full bg-white text-[#002E6E] hover:bg-blue-50 font-bold h-14 text-lg" data-testid="button-subscribe-monthly">
-                  <div className="flex justify-between items-center w-full">
-                    <span>Monthly</span>
-                    <span className="num">₹45 / 30 Days</span>
-                  </div>
-                </Button>
-                <Button className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-[#002E6E] hover:from-yellow-500 hover:to-orange-500 font-bold h-14 text-lg relative overflow-hidden" data-testid="button-subscribe-yearly">
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-bl-lg font-bold">SAVE 31%</div>
-                  <div className="flex justify-between items-center w-full">
-                    <span>Yearly</span>
-                    <span className="num">₹369 / Year</span>
-                  </div>
-                </Button>
-              </div>
+              {user?.subscriptionStatus === 'active' || (user?.subscriptionStatus === 'trial' && user?.stripeSubscriptionId) ? (
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full bg-white text-[#002E6E] hover:bg-blue-50 font-bold h-14 text-lg" 
+                    onClick={() => portalMutation.mutate()}
+                    disabled={portalMutation.isPending}
+                    data-testid="button-manage-subscription"
+                  >
+                    {portalMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    ) : (
+                      <ExternalLink className="w-5 h-5 mr-2" />
+                    )}
+                    Manage Subscription
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <Button 
+                    className="w-full bg-white text-[#002E6E] hover:bg-blue-50 font-bold h-14 text-lg" 
+                    onClick={() => monthlyPrice && handleSubscribe(monthlyPrice.price_id)}
+                    disabled={checkoutMutation.isPending || !monthlyPrice}
+                    data-testid="button-subscribe-monthly"
+                  >
+                    {checkoutMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <div className="flex justify-between items-center w-full">
+                        <span>Monthly</span>
+                        <span className="num">₹45 / 30 Days</span>
+                      </div>
+                    )}
+                  </Button>
+                  <Button 
+                    className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-[#002E6E] hover:from-yellow-500 hover:to-orange-500 font-bold h-14 text-lg relative overflow-hidden" 
+                    onClick={() => yearlyPrice && handleSubscribe(yearlyPrice.price_id)}
+                    disabled={checkoutMutation.isPending || !yearlyPrice}
+                    data-testid="button-subscribe-yearly"
+                  >
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-2 py-0.5 rounded-bl-lg font-bold">SAVE 31%</div>
+                    {checkoutMutation.isPending ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <div className="flex justify-between items-center w-full">
+                        <span>Yearly</span>
+                        <span className="num">₹369 / Year</span>
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              )}
 
               <p className="text-center text-blue-200 text-xs mt-4">
-                Start with 1 Month Free Trial • Cancel anytime
+                {user?.subscriptionStatus === 'active' 
+                  ? 'Manage billing, update payment method, or cancel anytime' 
+                  : 'Start with 1 Month Free Trial • Cancel anytime'}
               </p>
             </div>
           </div>

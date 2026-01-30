@@ -41,16 +41,40 @@ export class WebhookHandlers {
     const customerId = subscription.customer;
     const subscriptionId = subscription.id;
     const status = subscription.status;
+    const trialEnd = subscription.trial_end;
     
-    if (status === 'active' || status === 'trialing') {
-      const result = await db.execute(
+    // Map Stripe status to app status - preserve trial state
+    let appStatus: string;
+    if (status === 'trialing') {
+      appStatus = 'trial';
+    } else if (status === 'active') {
+      appStatus = 'active';
+    } else if (status === 'canceled' || status === 'unpaid' || status === 'past_due') {
+      appStatus = 'expired';
+    } else {
+      console.log(`[Stripe] Skipping subscription ${subscriptionId} with status ${status}`);
+      return;
+    }
+    
+    // Update user with correct status
+    if (appStatus === 'trial' && trialEnd) {
+      const trialEndsAt = new Date(trialEnd * 1000);
+      await db.execute(
         sql`UPDATE users SET 
-          subscription_status = 'active',
+          subscription_status = ${appStatus},
+          stripe_subscription_id = ${subscriptionId},
+          trial_ends_at = ${trialEndsAt}
+        WHERE stripe_customer_id = ${customerId}`
+      );
+    } else {
+      await db.execute(
+        sql`UPDATE users SET 
+          subscription_status = ${appStatus},
           stripe_subscription_id = ${subscriptionId}
         WHERE stripe_customer_id = ${customerId}`
       );
-      console.log(`[Stripe] Subscription activated for customer: ${customerId}`);
     }
+    console.log(`[Stripe] Subscription ${appStatus} for customer: ${customerId}`);
   }
   
   static async deactivateSubscription(subscription: any) {
@@ -70,13 +94,9 @@ export class WebhookHandlers {
     const subscriptionId = session.subscription;
     
     if (subscriptionId) {
-      await db.execute(
-        sql`UPDATE users SET 
-          subscription_status = 'active',
-          stripe_subscription_id = ${subscriptionId}
-        WHERE stripe_customer_id = ${customerId}`
-      );
-      console.log(`[Stripe] Checkout completed - subscription activated for: ${customerId}`);
+      // The subscription.created webhook will handle the actual status update
+      // Here we just ensure the stripe_customer_id is set correctly
+      console.log(`[Stripe] Checkout completed for customer: ${customerId}, subscription: ${subscriptionId}`);
     }
   }
 }

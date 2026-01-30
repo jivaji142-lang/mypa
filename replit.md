@@ -18,6 +18,9 @@ Preferred communication style: Simple, everyday language.
 - Fixed alarm system with 12-hour time format (AM/PM)
 - Implemented active alarm popup with image display, TTS, and snooze functionality
 - Fixed image upload to use base64 encoding for unlimited size support
+- **Stripe Payment Integration**: Monthly (₹45) and Yearly (₹369) subscription plans with 30-day free trial
+- **Webhook Auto-Activation**: Subscription status automatically updates via Stripe webhooks
+- **Customer Portal**: Users can manage billing, update payment methods, and cancel subscriptions
 
 ## System Architecture
 
