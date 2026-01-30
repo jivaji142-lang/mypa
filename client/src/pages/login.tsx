@@ -141,30 +141,30 @@ export default function Login() {
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 {isSignup && (
                   <div className="space-y-2">
-                    <Label>Full Name</Label>
+                    <Label className="text-slate-700">Full Name</Label>
                     <Input 
                       placeholder="Your name"
                       value={emailForm.name}
                       onChange={e => setEmailForm({ ...emailForm, name: e.target.value })}
-                      className="h-11"
+                      className="h-11 bg-white text-slate-900 border-slate-300"
                       data-testid="input-name"
                     />
                   </div>
                 )}
                 <div className="space-y-2">
-                  <Label>Email</Label>
+                  <Label className="text-slate-700">Email</Label>
                   <Input 
                     type="email"
                     placeholder="your@email.com"
                     value={emailForm.email}
                     onChange={e => setEmailForm({ ...emailForm, email: e.target.value })}
                     required
-                    className="h-11"
+                    className="h-11 bg-white text-slate-900 border-slate-300"
                     data-testid="input-email"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Password</Label>
+                  <Label className="text-slate-700">Password</Label>
                   <div className="relative">
                     <Input 
                       type={showPassword ? "text" : "password"}
@@ -172,7 +172,7 @@ export default function Login() {
                       value={emailForm.password}
                       onChange={e => setEmailForm({ ...emailForm, password: e.target.value })}
                       required
-                      className="h-11 pr-10"
+                      className="h-11 pr-10 bg-white text-slate-900 border-slate-300"
                       data-testid="input-password"
                     />
                     <button
@@ -211,7 +211,7 @@ export default function Login() {
             <TabsContent value="phone" className="space-y-4">
               <form onSubmit={handlePhoneSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Phone Number</Label>
+                  <Label className="text-slate-700">Phone Number</Label>
                   <Input 
                     type="tel"
                     placeholder="+91 98765 43210"
@@ -219,7 +219,7 @@ export default function Login() {
                     onChange={e => setPhoneForm({ ...phoneForm, phone: e.target.value })}
                     required
                     disabled={otpSent}
-                    className="h-11"
+                    className="h-11 bg-white text-slate-900 border-slate-300"
                     data-testid="input-phone"
                   />
                 </div>
@@ -227,7 +227,7 @@ export default function Login() {
                 {otpSent && (
                   <>
                     <div className="space-y-2">
-                      <Label>Enter OTP</Label>
+                      <Label className="text-slate-700">Enter OTP</Label>
                       <Input 
                         type="text"
                         placeholder="123456"
@@ -235,17 +235,17 @@ export default function Login() {
                         onChange={e => setPhoneForm({ ...phoneForm, otp: e.target.value })}
                         required
                         maxLength={6}
-                        className="h-11 text-center text-xl tracking-widest font-bold"
+                        className="h-11 text-center text-xl tracking-widest font-bold bg-white text-slate-900 border-slate-300"
                         data-testid="input-otp"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Your Name</Label>
+                      <Label className="text-slate-700">Your Name</Label>
                       <Input 
                         placeholder="Your name"
                         value={phoneForm.name}
                         onChange={e => setPhoneForm({ ...phoneForm, name: e.target.value })}
-                        className="h-11"
+                        className="h-11 bg-white text-slate-900 border-slate-300"
                         data-testid="input-phone-name"
                       />
                     </div>
