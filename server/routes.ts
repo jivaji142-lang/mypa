@@ -302,18 +302,23 @@ export async function registerRoutes(
         try {
           // Use Quick SMS route (works without DLT verification)
           const message = `Your MyPA verification code is: ${otp}. Valid for 10 minutes.`;
-          const response = await fetch(`https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&message=${encodeURIComponent(message)}&route=q&numbers=${phone}`);
+          const apiUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&message=${encodeURIComponent(message)}&route=q&numbers=${phone}`;
+          
+          console.log(`[Fast2SMS] Sending to ${phone}...`);
+          const response = await fetch(apiUrl);
           const result = await response.json();
           
+          console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
+          
           if (!result.return) {
-            console.error("Fast2SMS error:", result);
+            console.error("[Fast2SMS] Error - SMS not sent:", result.message || result);
             // Fallback: log OTP for testing
             console.log(`[FALLBACK] OTP for ${phone}: ${otp}`);
           } else {
-            console.log(`OTP sent to ${phone} via Fast2SMS`);
+            console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
           }
         } catch (smsError) {
-          console.error("SMS send error:", smsError);
+          console.error("[Fast2SMS] Exception:", smsError);
           // Fallback: log OTP for testing
           console.log(`[FALLBACK] OTP for ${phone}: ${otp}`);
         }
