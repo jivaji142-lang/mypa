@@ -206,7 +206,10 @@ export default function Home() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               fontFamily: 'Cambria, Georgia, serif',
-              letterSpacing: '-1px'
+              letterSpacing: '-1px',
+              lineHeight: '1.2',
+              position: 'relative',
+              top: '-4px'
             }}
             data-testid="text-logo"
           >
