@@ -1,16 +1,28 @@
 import { Link, useLocation } from "wouter";
 import { Bell, Pill, Settings, LogOut, Menu, X, Home, Users } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/hooks/use-translations";
+import { useTrialStatus } from "@/hooks/use-trial-status";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { TrialPopup } from "@/components/trial-popup";
+import { AdPopup } from "@/components/ad-popup";
+import { ExpiredBanner } from "@/components/expired-banner";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [popupDismissed, setPopupDismissed] = useState(false);
+  const [adDismissed, setAdDismissed] = useState(false);
   const { user, logout } = useAuth();
   const t = useTranslations();
+  const { status, daysRemaining } = useTrialStatus();
+
+  useEffect(() => {
+    setPopupDismissed(false);
+    setAdDismissed(false);
+  }, [location]);
 
   const navItems = [
     { href: "/", label: t.home, icon: Home },
@@ -122,6 +134,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+
+      {/* Trial Enforcement Popups */}
+      {status === "show_popup" && !popupDismissed && (
+        <TrialPopup daysRemaining={daysRemaining} onClose={() => setPopupDismissed(true)} />
+      )}
+      {status === "show_ads" && !adDismissed && (
+        <AdPopup daysRemaining={daysRemaining} onClose={() => setAdDismissed(true)} />
+      )}
+      {status === "expired" && (
+        <ExpiredBanner />
+      )}
     </div>
   );
 }
