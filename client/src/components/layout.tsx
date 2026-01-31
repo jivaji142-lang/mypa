@@ -58,6 +58,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
              <span className="text-[#00BAF2] text-xs font-bold px-2 py-0.5 bg-[#00BAF2]/10 rounded-full border border-[#00BAF2]/20">{t.active}</span>
           </div>
         </div>
+        <Link href="/">
+          <button 
+            className="w-full flex items-center justify-center gap-2 text-white hover:bg-white/10 py-2 rounded-lg transition-colors mb-2"
+            onClick={() => setMobileMenuOpen(false)}
+            data-testid="button-home-sidebar"
+          >
+            <Home className="w-4 h-4" />
+            <span>{t.home}</span>
+          </button>
+        </Link>
         <button 
           onClick={() => logout()}
           className="w-full flex items-center justify-center gap-2 text-red-300 hover:text-red-200 hover:bg-red-500/10 py-2 rounded-lg transition-colors"
