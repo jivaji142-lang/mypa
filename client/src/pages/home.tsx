@@ -209,16 +209,16 @@ export default function Home() {
 
       <div className="flex-1 flex flex-col items-center px-4">
         <div className="text-center mb-4 mt-2">
-          <div className="flex items-baseline justify-center gap-2">
+          <div className="flex items-baseline justify-center gap-3">
             <span 
-              className="text-5xl md:text-6xl font-bold text-[#002E6E] tracking-tight"
+              className="text-7xl md:text-8xl font-bold text-[#002E6E] tracking-tight"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
               data-testid="text-current-time"
             >
               {formatTime(time)}
             </span>
             <span 
-              className="text-lg md:text-xl font-semibold text-[#00BAF2]"
+              className="text-xl md:text-2xl font-semibold text-[#00BAF2]"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
               data-testid="text-daynight"
             >
@@ -226,7 +226,7 @@ export default function Home() {
             </span>
           </div>
           <p 
-            className="text-base text-[#002E6E]/60"
+            className="text-lg text-[#002E6E]/60 mt-1"
             style={{ fontFamily: 'Cambria, Georgia, serif' }}
             data-testid="text-day-name"
           >
