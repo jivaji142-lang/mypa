@@ -162,6 +162,14 @@ export default function SettingsPage() {
       };
       
       const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', (response: any) => {
+        toast({ 
+          title: "Payment Failed", 
+          description: response.error?.description || "Payment could not be completed. Please try again.", 
+          variant: "destructive" 
+        });
+        setClickedPlan(null);
+      });
       rzp.open();
       setClickedPlan(null);
     },
