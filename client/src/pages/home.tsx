@@ -197,14 +197,29 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="text-center pt-6 pb-3 px-4">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl royal-gradient flex items-center justify-center shadow-lg">
-            <Clock className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#002E6E] tracking-wide uppercase">
-            Your Personal Assistant
-          </h1>
+        {/* MyPA Logo - Paytm Inspired */}
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <span 
+            className="text-4xl md:text-5xl font-black tracking-tight"
+            style={{ 
+              background: 'linear-gradient(135deg, #002E6E 0%, #00BAF2 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              fontFamily: 'Arial Black, Helvetica, sans-serif',
+              letterSpacing: '-1px'
+            }}
+            data-testid="text-logo"
+          >
+            My<span style={{ 
+              background: 'linear-gradient(135deg, #00BAF2 0%, #002E6E 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>PA</span>
+          </span>
         </div>
+        <p className="text-sm md:text-base text-[#002E6E] font-semibold tracking-wide uppercase mb-2">
+          Your Personal Assistant
+        </p>
       </header>
 
       <div className="flex-1 flex flex-col items-center px-4">
