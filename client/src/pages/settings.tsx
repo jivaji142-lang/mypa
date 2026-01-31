@@ -87,7 +87,7 @@ export default function SettingsPage() {
     },
     onSuccess: (data: { url: string }) => {
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, '_blank');
       }
     },
   });
