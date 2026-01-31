@@ -518,6 +518,65 @@ export async function registerRoutes(
     res.json({ key: process.env.RAZORPAY_KEY_ID });
   });
 
+  // Razorpay Webhook - handles payment.captured event
+  app.post("/api/razorpay/webhook", async (req, res) => {
+    try {
+      const webhookSignature = req.headers['x-razorpay-signature'] as string;
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      
+      // If webhook secret is set, verify signature
+      if (webhookSecret && webhookSignature) {
+        const body = JSON.stringify(req.body);
+        const expectedSignature = crypto
+          .createHmac("sha256", webhookSecret)
+          .update(body)
+          .digest("hex");
+        
+        if (expectedSignature !== webhookSignature) {
+          console.log("Razorpay webhook signature mismatch");
+          return res.status(400).json({ message: "Invalid signature" });
+        }
+      }
+      
+      const event = req.body.event;
+      const payload = req.body.payload;
+      
+      if (event === 'payment.captured') {
+        const payment = payload.payment.entity;
+        const orderId = payment.order_id;
+        
+        // Fetch order to get user info
+        const order = await razorpay.orders.fetch(orderId);
+        const userId = order.notes?.userId;
+        
+        if (userId) {
+          const plan = order.amount === 36900 ? 'yearly' : 'monthly';
+          const subscriptionEnd = new Date();
+          if (plan === 'yearly') {
+            subscriptionEnd.setFullYear(subscriptionEnd.getFullYear() + 1);
+          } else {
+            subscriptionEnd.setDate(subscriptionEnd.getDate() + 30);
+          }
+          
+          await db.execute(sql`
+            UPDATE users 
+            SET subscription_status = 'active',
+                trial_ends_at = ${subscriptionEnd.toISOString()},
+                updated_at = NOW()
+            WHERE id = ${userId}
+          `);
+          
+          console.log(`Webhook: Subscription activated for user ${userId}, plan: ${plan}`);
+        }
+      }
+      
+      res.json({ status: 'ok' });
+    } catch (error: any) {
+      console.error("Razorpay webhook error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   app.post("/api/razorpay/create-order", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     
