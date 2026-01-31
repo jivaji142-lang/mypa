@@ -16,9 +16,14 @@ class AuthStorage implements IAuthStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days trial
     const [user] = await db
       .insert(users)
-      .values(userData)
+      .values({
+        ...userData,
+        subscriptionStatus: "trial",
+        trialEndsAt,
+      })
       .onConflictDoUpdate({
         target: users.id,
         set: {

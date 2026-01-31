@@ -101,6 +101,7 @@ export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true 
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = Partial<InsertUser> & { id: string };
 export type Alarm = typeof alarms.$inferSelect;
 export type InsertAlarm = z.infer<typeof insertAlarmSchema>;
 export type Medicine = typeof medicines.$inferSelect;
