@@ -220,7 +220,7 @@ export default function Home() {
             }}>PA</span>
           </span>
         </div>
-        <p className="text-sm md:text-base text-[#002E6E] font-semibold tracking-widest uppercase mb-2 bg-transparent -mt-1">
+        <p className="text-sm md:text-base text-[#002E6E] font-semibold tracking-wider uppercase mb-2 bg-transparent -mt-1">
           Your Personal Assistant
         </p>
       </header>
