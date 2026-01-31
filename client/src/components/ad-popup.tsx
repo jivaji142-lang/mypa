@@ -71,7 +71,7 @@ export function AdPopup({ daysRemaining, onClose }: AdPopupProps) {
             data-testid="button-subscribe-monthly-ad"
           >
             <Crown className="w-5 h-5 mr-2" />
-            ₹1/month
+            ₹45/month
           </Button>
           <Button
             onClick={() => yearlyPrice && checkoutMutation.mutate(yearlyPrice.price_id)}
@@ -80,7 +80,7 @@ export function AdPopup({ daysRemaining, onClose }: AdPopupProps) {
             data-testid="button-subscribe-yearly-ad"
           >
             <Crown className="w-5 h-5 mr-2" />
-            ₹2/year (Best Value!)
+            ₹369/year (Best Value!)
           </Button>
         </div>
 

@@ -376,7 +376,7 @@ export default function SettingsPage() {
                     ) : (
                       <div className="flex justify-between items-center w-full">
                         <span>Monthly</span>
-                        <span className="num">₹1 / 30 Days</span>
+                        <span className="num">₹45 / 30 Days</span>
                       </div>
                     )}
                   </Button>
@@ -392,7 +392,7 @@ export default function SettingsPage() {
                     ) : (
                       <div className="flex justify-between items-center w-full">
                         <span>Yearly</span>
-                        <span className="num">₹2 / Year</span>
+                        <span className="num">₹369 / Year</span>
                       </div>
                     )}
                   </Button>
