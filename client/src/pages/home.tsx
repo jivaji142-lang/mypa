@@ -198,7 +198,7 @@ export default function Home() {
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="text-center pt-6 pb-3 px-4">
         {/* MyPA Logo - Paytm Inspired */}
-        <div className="flex items-center justify-center gap-2 mb-1 pb-1">
+        <div className="flex items-center justify-center gap-2 mb-0">
           <span 
             className="text-5xl md:text-6xl font-black tracking-tight"
             style={{ 
