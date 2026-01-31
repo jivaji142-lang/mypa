@@ -21,6 +21,11 @@ Preferred communication style: Simple, everyday language.
 - **Stripe Payment Integration**: Monthly (₹45) and Yearly (₹369) subscription plans with 30-day free trial
 - **Webhook Auto-Activation**: Subscription status automatically updates via Stripe webhooks
 - **Customer Portal**: Users can manage billing, update payment methods, and cancel subscriptions
+- **Trial Enforcement Flow**:
+  - Day 1-14: Full access (active trial)
+  - Day 15-24: Skippable premium popup appears on each page
+  - Day 25-29: Unskippable 10-second countdown ad popup
+  - Day 30+: Expired mode - only existing alarms ring, subscription required for full access
 
 ## System Architecture
 
