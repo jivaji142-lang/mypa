@@ -121,16 +121,29 @@ export default function SettingsPage() {
               <p className="text-slate-500 text-sm">{user?.email || user?.phone || 'User'}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-            onClick={() => window.location.href = '/api/logout'}
-            data-testid="button-logout"
-          >
-            <LogOut className="w-4 h-4 mr-1" />
-            Logout
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/">
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="border-[#002E6E] text-[#002E6E] hover:bg-[#002E6E] hover:text-white"
+                data-testid="button-home"
+              >
+                <Home className="w-4 h-4 mr-1" />
+                Home
+              </Button>
+            </Link>
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              onClick={() => window.location.href = '/api/logout'}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4 mr-1" />
+              Logout
+            </Button>
+          </div>
         </div>
       </div>
 
