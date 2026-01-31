@@ -4,7 +4,7 @@ import { Clock } from "lucide-react";
 import { useTranslations } from "@/hooks/use-translations";
 
 const RoutineIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-16 h-16">
+  <svg viewBox="0 0 120 120" className="w-20 h-20">
     <defs>
       <linearGradient id="paytmBlue" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -53,7 +53,7 @@ const RoutineIcon = () => (
 );
 
 const MedicineIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-16 h-16">
+  <svg viewBox="0 0 120 120" className="w-20 h-20">
     <defs>
       <linearGradient id="paytmBottle" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -102,7 +102,7 @@ const MedicineIcon = () => (
 );
 
 const MeetingIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-16 h-16">
+  <svg viewBox="0 0 120 120" className="w-20 h-20">
     <defs>
       <linearGradient id="paytmCalendar" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -196,12 +196,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="text-center pt-4 pb-2 px-4">
-        <div className="flex items-center justify-center gap-2 mb-1">
-          <div className="w-10 h-10 rounded-xl royal-gradient flex items-center justify-center shadow-lg">
-            <Clock className="w-5 h-5 text-white" />
+      <header className="text-center pt-6 pb-3 px-4">
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <div className="w-12 h-12 rounded-xl royal-gradient flex items-center justify-center shadow-lg">
+            <Clock className="w-6 h-6 text-white" />
           </div>
-          <h1 className="text-lg md:text-xl font-bold text-[#002E6E] tracking-wide uppercase">
+          <h1 className="text-xl md:text-2xl font-bold text-[#002E6E] tracking-wide uppercase">
             Your Personal Assistant
           </h1>
         </div>
@@ -234,16 +234,16 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-sm flex flex-col gap-3 pb-4">
+        <div className="w-full max-w-sm flex flex-col gap-4 pb-6">
           {cards.map((card) => {
             const IconComponent = card.icon;
             return (
               <Link key={card.href} href={card.href} data-testid={`link-${card.href.slice(1)}`}>
                 <div 
-                  className="bg-white rounded-xl py-3 px-4 shadow-md border border-slate-100 hover:shadow-lg transition-all duration-300 cursor-pointer group flex items-center gap-4"
+                  className="bg-white rounded-2xl py-4 px-5 shadow-md border border-slate-100 hover:shadow-lg transition-all duration-300 cursor-pointer group text-center"
                   data-testid={`card-${card.href.slice(1)}`}
                 >
-                  <div className="group-hover:scale-105 transition-transform">
+                  <div className="flex justify-center mb-2 group-hover:scale-105 transition-transform">
                     <IconComponent />
                   </div>
                   <h2 className="text-lg font-bold text-[#002E6E] italic">
