@@ -50,7 +50,7 @@ export function ExpiredBanner() {
             data-testid="button-subscribe-monthly-expired"
           >
             <Crown className="w-5 h-5 mr-2" />
-            Subscribe ₹45/month
+            Subscribe ₹5/month
           </Button>
           <Button
             onClick={() => yearlyPrice && checkoutMutation.mutate(yearlyPrice.price_id)}
@@ -60,7 +60,7 @@ export function ExpiredBanner() {
             data-testid="button-subscribe-yearly-expired"
           >
             <Crown className="w-5 h-5 mr-2" />
-            Subscribe ₹369/year
+            Subscribe ₹6/year
           </Button>
         </div>
       </div>

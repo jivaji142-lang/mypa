@@ -66,7 +66,7 @@ export function TrialPopup({ daysRemaining, onClose }: TrialPopupProps) {
             className="w-full royal-gradient text-white py-6 text-lg"
             data-testid="button-subscribe-monthly-popup"
           >
-            ₹45/month
+            ₹5/month
           </Button>
           <Button
             onClick={() => yearlyPrice && checkoutMutation.mutate(yearlyPrice.price_id)}
@@ -75,7 +75,7 @@ export function TrialPopup({ daysRemaining, onClose }: TrialPopupProps) {
             className="w-full border-2 border-[#002E6E] text-[#002E6E] py-6 text-lg"
             data-testid="button-subscribe-yearly-popup"
           >
-            ₹369/year (Save 32%)
+            ₹6/year
           </Button>
         </div>
 

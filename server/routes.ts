@@ -550,7 +550,7 @@ export async function registerRoutes(
         const userId = order.notes?.userId;
         
         if (userId) {
-          const plan = order.amount === 36900 ? 'yearly' : 'monthly';
+          const plan = order.amount === 600 ? 'yearly' : 'monthly';
           const subscriptionEnd = new Date();
           if (plan === 'yearly') {
             subscriptionEnd.setFullYear(subscriptionEnd.getFullYear() + 1);
@@ -587,7 +587,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid plan. Use 'monthly' or 'yearly'" });
       }
       
-      const amount = plan === 'yearly' ? 36900 : 4500; // ₹369 yearly, ₹45 monthly
+      const amount = plan === 'yearly' ? 600 : 500; // Testing: ₹6 yearly, ₹5 monthly
       
       const order = await razorpay.orders.create({
         amount: amount,
@@ -639,7 +639,7 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Order user mismatch" });
       }
       
-      const plan = order.amount === 36900 ? 'yearly' : 'monthly';
+      const plan = order.amount === 600 ? 'yearly' : 'monthly';
       
       const subscriptionEnd = new Date();
       if (plan === 'yearly') {
