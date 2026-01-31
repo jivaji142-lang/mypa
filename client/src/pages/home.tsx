@@ -4,7 +4,7 @@ import { Clock } from "lucide-react";
 import { useTranslations } from "@/hooks/use-translations";
 
 const RoutineIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-24 h-24">
+  <svg viewBox="0 0 120 120" className="w-16 h-16">
     <defs>
       <linearGradient id="paytmBlue" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -53,7 +53,7 @@ const RoutineIcon = () => (
 );
 
 const MedicineIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-24 h-24">
+  <svg viewBox="0 0 120 120" className="w-16 h-16">
     <defs>
       <linearGradient id="paytmBottle" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -102,7 +102,7 @@ const MedicineIcon = () => (
 );
 
 const MeetingIcon = () => (
-  <svg viewBox="0 0 120 120" className="w-24 h-24">
+  <svg viewBox="0 0 120 120" className="w-16 h-16">
     <defs>
       <linearGradient id="paytmCalendar" x1="0%" y1="0%" x2="0%" y2="100%">
         <stop offset="0%" stopColor="#00BAF2"/>
@@ -196,29 +196,29 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="text-center pt-8 pb-4 px-4">
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <div className="w-12 h-12 rounded-xl royal-gradient flex items-center justify-center shadow-lg">
-            <Clock className="w-6 h-6 text-white" />
+      <header className="text-center pt-4 pb-2 px-4">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <div className="w-10 h-10 rounded-xl royal-gradient flex items-center justify-center shadow-lg">
+            <Clock className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#002E6E] tracking-wide uppercase">
+          <h1 className="text-lg md:text-xl font-bold text-[#002E6E] tracking-wide uppercase">
             Your Personal Assistant
           </h1>
         </div>
       </header>
 
       <div className="flex-1 flex flex-col items-center px-4">
-        <div className="text-center mb-8 mt-4">
-          <div className="flex items-baseline justify-center gap-3">
+        <div className="text-center mb-4 mt-2">
+          <div className="flex items-baseline justify-center gap-2">
             <span 
-              className="text-7xl md:text-8xl font-bold text-[#002E6E] tracking-tight"
+              className="text-5xl md:text-6xl font-bold text-[#002E6E] tracking-tight"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
               data-testid="text-current-time"
             >
               {formatTime(time)}
             </span>
             <span 
-              className="text-xl md:text-2xl font-semibold text-[#00BAF2]"
+              className="text-lg md:text-xl font-semibold text-[#00BAF2]"
               style={{ fontFamily: 'Cambria, Georgia, serif' }}
               data-testid="text-daynight"
             >
@@ -226,7 +226,7 @@ export default function Home() {
             </span>
           </div>
           <p 
-            className="text-lg text-[#002E6E]/60 mt-1"
+            className="text-base text-[#002E6E]/60"
             style={{ fontFamily: 'Cambria, Georgia, serif' }}
             data-testid="text-day-name"
           >
@@ -234,16 +234,16 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="w-full max-w-sm flex flex-col gap-6 pb-8">
+        <div className="w-full max-w-sm flex flex-col gap-3 pb-4">
           {cards.map((card) => {
             const IconComponent = card.icon;
             return (
               <Link key={card.href} href={card.href} data-testid={`link-${card.href.slice(1)}`}>
                 <div 
-                  className="bg-white rounded-2xl py-5 px-4 shadow-md border border-slate-100 hover:shadow-lg transition-all duration-300 cursor-pointer group text-center"
+                  className="bg-white rounded-xl py-3 px-4 shadow-md border border-slate-100 hover:shadow-lg transition-all duration-300 cursor-pointer group flex items-center gap-4"
                   data-testid={`card-${card.href.slice(1)}`}
                 >
-                  <div className="flex justify-center mb-2 group-hover:scale-105 transition-transform">
+                  <div className="group-hover:scale-105 transition-transform">
                     <IconComponent />
                   </div>
                   <h2 className="text-lg font-bold text-[#002E6E] italic">
