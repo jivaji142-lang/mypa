@@ -200,7 +200,7 @@ export default function Home() {
         {/* MyPA Logo - Paytm Inspired */}
         <div className="flex items-center justify-center gap-2 mb-1">
           <span 
-            className="text-4xl md:text-5xl font-black tracking-tight"
+            className="text-5xl md:text-6xl font-black tracking-tight"
             style={{ 
               background: 'linear-gradient(135deg, #002E6E 0%, #00BAF2 100%)',
               WebkitBackgroundClip: 'text',
