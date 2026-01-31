@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Layout from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/hooks/use-translations";
@@ -87,12 +88,15 @@ export default function SettingsPage() {
 
   const monthlyPrice = productsData?.products?.find(p => p.recurring?.interval === 'month');
   const yearlyPrice = productsData?.products?.find(p => p.recurring?.interval === 'year');
+  
+  const [clickedPlan, setClickedPlan] = useState<'monthly' | 'yearly' | null>(null);
 
-  const handleSubscribe = (priceId: string) => {
+  const handleSubscribe = (priceId: string, plan: 'monthly' | 'yearly') => {
     if (!user) {
       window.location.href = '/login';
       return;
     }
+    setClickedPlan(plan);
     checkoutMutation.mutate(priceId);
   };
 
@@ -275,11 +279,11 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <Button 
                     className="w-full bg-white text-[#002E6E] hover:bg-blue-50 font-bold h-11" 
-                    onClick={() => monthlyPrice && handleSubscribe(monthlyPrice.price_id)}
+                    onClick={() => monthlyPrice && handleSubscribe(monthlyPrice.price_id, 'monthly')}
                     disabled={checkoutMutation.isPending || !monthlyPrice}
                     data-testid="button-subscribe-monthly"
                   >
-                    {checkoutMutation.isPending ? (
+                    {checkoutMutation.isPending && clickedPlan === 'monthly' ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <div className="flex justify-between items-center w-full">
@@ -290,12 +294,12 @@ export default function SettingsPage() {
                   </Button>
                   <Button 
                     className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 text-[#002E6E] hover:from-yellow-500 hover:to-orange-500 font-bold h-11 relative overflow-hidden" 
-                    onClick={() => yearlyPrice && handleSubscribe(yearlyPrice.price_id)}
+                    onClick={() => yearlyPrice && handleSubscribe(yearlyPrice.price_id, 'yearly')}
                     disabled={checkoutMutation.isPending || !yearlyPrice}
                     data-testid="button-subscribe-yearly"
                   >
                     <div className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-bl-lg font-bold">SAVE 31%</div>
-                    {checkoutMutation.isPending ? (
+                    {checkoutMutation.isPending && clickedPlan === 'yearly' ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <div className="flex justify-between items-center w-full">
