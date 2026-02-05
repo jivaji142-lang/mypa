@@ -94,10 +94,21 @@ export const meetings = pgTable("meetings", {
   enabled: boolean("enabled").default(true),
 });
 
+// Push notification subscriptions
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 export const insertUserSchema = createInsertSchema(users);
 export const insertAlarmSchema = createInsertSchema(alarms).omit({ id: true });
 export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
 export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -108,3 +119,5 @@ export type Medicine = typeof medicines.$inferSelect;
 export type InsertMedicine = z.infer<typeof insertMedicineSchema>;
 export type Meeting = typeof meetings.$inferSelect;
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = z.infer<typeof insertPushSubscriptionSchema>;
