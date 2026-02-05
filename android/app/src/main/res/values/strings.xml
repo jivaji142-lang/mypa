@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MyPA</string>
+    <string name="title_activity_main">MyPA</string>
+    <string name="package_name">com.mypa.app</string>
+    <string name="custom_url_scheme">com.mypa.app</string>
+</resources>

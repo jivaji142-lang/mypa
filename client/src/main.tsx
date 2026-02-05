@@ -1,5 +1,8 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initializeCapacitor } from "./lib/capacitor";
 
-createRoot(document.getElementById("root")!).render(<App />);
+initializeCapacitor().then(() => {
+  createRoot(document.getElementById("root")!).render(<App />);
+});
