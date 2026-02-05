@@ -11,6 +11,8 @@ import { sql } from "drizzle-orm";
 import { db } from "./db";
 import Razorpay from "razorpay";
 import crypto from "crypto";
+import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushNotification } from "./pushNotification";
+import { startAlarmScheduler } from "./alarmScheduler";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -666,6 +668,80 @@ export async function registerRoutes(
       res.status(500).json({ message: error.message || "Payment verification failed" });
     }
   });
+
+  // Push Notification Routes
+  app.get("/api/push/vapid-key", (req, res) => {
+    res.json({ publicKey: getVapidPublicKey() });
+  });
+
+  app.post("/api/push/subscribe", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const { endpoint, keys } = req.body;
+      
+      if (!endpoint || !keys?.p256dh || !keys?.auth) {
+        return res.status(400).json({ message: "Invalid subscription data" });
+      }
+      
+      await savePushSubscription(
+        (req.user as any).id,
+        endpoint,
+        keys.p256dh,
+        keys.auth
+      );
+      
+      res.json({ success: true, message: "Push subscription saved" });
+    } catch (error: any) {
+      console.error("Push subscribe error:", error);
+      res.status(500).json({ message: error.message || "Failed to save subscription" });
+    }
+  });
+
+  app.post("/api/push/unsubscribe", async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      
+      if (endpoint) {
+        await removePushSubscription(endpoint);
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Push unsubscribe error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/push/test", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    
+    try {
+      const result = await sendPushNotification((req.user as any).id, {
+        title: "MyPA Test",
+        body: "Push notification working!",
+        type: "alarm"
+      });
+      
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Push test error:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.post("/api/push/snooze", async (req, res) => {
+    try {
+      const { alarmId, minutes } = req.body;
+      console.log(`[Snooze] Alarm ${alarmId} snoozed for ${minutes} minutes`);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Start the alarm scheduler
+  startAlarmScheduler();
 
   return httpServer;
 }
