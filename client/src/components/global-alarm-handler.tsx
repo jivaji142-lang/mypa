@@ -111,7 +111,7 @@ export function GlobalAlarmHandler() {
       audio.loop = shouldLoop;
       audio.play().catch(err => {
         console.error("[GlobalAlarm] Audio playback failed:", err);
-        const ttsText = item.textToSpeak || item.title || item.name || 'Alarm';
+        const ttsText = item.textToSpeak || item.title || item.name || t.alarm;
         speakTTS(ttsText, item.language || user?.language || 'english', item.voiceGender || 'female', shouldLoop);
       });
 
@@ -122,7 +122,7 @@ export function GlobalAlarmHandler() {
         if (audio) audio.src = "";
       }, duration);
     } else if (item.textToSpeak || type === 'medicine' || item.type === 'speaking') {
-      const msg = item.textToSpeak || (type === 'medicine' ? `Time for your medicine: ${item.name}` : item.title || "Alarm");
+      const msg = item.textToSpeak || (type === 'medicine' ? `${t.timeForMedicine}: ${item.name}` : item.title || t.alarm);
       if (msg) {
         speakTTS(msg, item.language || user?.language || 'english', item.voiceGender || 'female', shouldLoop);
         setTimeout(() => {
@@ -130,19 +130,19 @@ export function GlobalAlarmHandler() {
         }, duration);
       }
     }
-  }, [user, speakTTS]);
+  }, [user, speakTTS, t]);
 
   const triggerFromPushData = useCallback((data: any) => {
     console.log('[GlobalAlarm] Triggering from push data:', data);
     const isMedicine = data.type === 'medicine';
     const medDosage = data.dosage ? ` (${data.dosage})` : '';
-    const medName = data.title || 'Medicine';
-    const defaultMedText = `Time for your medicine: ${medName}${medDosage}`;
+    const medName = data.title || t.medicine;
+    const defaultMedText = `${t.timeForMedicine}: ${medName}${medDosage}`;
     
     const item = {
       id: data.id || data.alarmId || 0,
-      title: data.title || (isMedicine ? 'Medicine Reminder' : 'Alarm'),
-      name: data.title || (isMedicine ? 'Medicine' : 'Alarm'),
+      title: data.title || (isMedicine ? t.medicineReminder : t.alarm),
+      name: data.title || (isMedicine ? t.medicine : t.alarm),
       textToSpeak: data.textToSpeak || data.body || (isMedicine ? defaultMedText : undefined),
       type: data.alarmType || 'speaking',
       voiceUrl: data.voiceUrl,
@@ -155,7 +155,7 @@ export function GlobalAlarmHandler() {
     };
     const alarmKind = isMedicine ? 'medicine' : 'alarm';
     triggerAlarm(item, alarmKind as 'alarm' | 'medicine');
-  }, [triggerAlarm]);
+  }, [triggerAlarm, t]);
 
   const dismissAlarm = useCallback(() => {
     isSpeakingRef.current = false;

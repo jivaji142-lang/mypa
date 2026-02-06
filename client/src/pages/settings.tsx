@@ -124,7 +124,7 @@ export default function SettingsPage() {
     },
     onSuccess: (data) => {
       if (!razorpayLoaded || !razorpayKey?.key) {
-        toast({ title: "Error", description: "Payment system not ready", variant: "destructive" });
+        toast({ title: t.error, description: t.paymentFailed, variant: "destructive" });
         return;
       }
       
@@ -132,8 +132,8 @@ export default function SettingsPage() {
         key: razorpayKey.key,
         amount: data.amount,
         currency: data.currency,
-        name: "MyPA Premium",
-        description: data.plan === 'yearly' ? "Yearly Subscription" : "Monthly Subscription",
+        name: `MyPA ${t.premium}`,
+        description: data.plan === 'yearly' ? t.yearly : t.monthly,
         order_id: data.orderId,
         handler: async (response: any) => {
           try {
@@ -337,7 +337,7 @@ export default function SettingsPage() {
                     onClick={async () => {
                       const result = await testNotification();
                       if (result) {
-                        toast({ title: "Test Sent", description: "Check for notification!" });
+                        toast({ title: t.success, description: t.testNotification });
                       }
                     }}
                     data-testid="button-test-notification"
