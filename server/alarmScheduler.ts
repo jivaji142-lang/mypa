@@ -95,7 +95,15 @@ async function checkAndSendAlarms() {
           body: alarm.textToSpeak || `${alarm.title} - Time to wake up!`,
           type: 'alarm',
           id: alarm.id,
-          textToSpeak: alarm.textToSpeak || undefined
+          textToSpeak: alarm.textToSpeak || undefined,
+          alarmType: alarm.type || 'speaking',
+          voiceUrl: alarm.voiceUrl || undefined,
+          imageUrl: alarm.imageUrl || undefined,
+          language: alarm.language || 'english',
+          days: alarm.days || undefined,
+          duration: alarm.duration || 30,
+          loop: alarm.loop !== false,
+          voiceGender: alarm.voiceGender || 'female',
         });
       }
     }
@@ -117,7 +125,16 @@ async function checkAndSendAlarms() {
               body: medicine.textToSpeak || `Time to take ${medicine.name}${medicine.dosage ? ` - ${medicine.dosage}` : ''}`,
               type: 'medicine',
               id: medicine.id,
-              textToSpeak: medicine.textToSpeak || undefined
+              textToSpeak: medicine.textToSpeak || undefined,
+              alarmType: medicine.type || 'speaking',
+              voiceUrl: medicine.voiceUrl || undefined,
+              imageUrl: medicine.photoUrl || undefined,
+              photoUrl: medicine.photoUrl || undefined,
+              dosage: medicine.dosage || undefined,
+              language: medicine.language || 'english',
+              duration: medicine.duration || 30,
+              loop: medicine.loop !== false,
+              voiceGender: medicine.voiceGender || 'female',
             });
           }
         }

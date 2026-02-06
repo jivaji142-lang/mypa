@@ -3,22 +3,11 @@ import { AlarmModal } from "@/components/alarm-modal";
 import { useAlarms, useDeleteAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
 import { useMedicines } from "@/hooks/use-medicines";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, Mic, Volume2, Music, Vibrate, PlayCircle, Loader2, Edit2, Calendar, X, Clock } from "lucide-react";
+import { Trash2, Mic, Volume2, Music, Vibrate, PlayCircle, Loader2, Edit2, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/hooks/use-translations";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-
-interface ActiveAlarmData {
-  id: number;
-  type: 'alarm' | 'medicine';
-  title: string;
-  message: string;
-  imageUrl?: string;
-  audio?: HTMLAudioElement;
-}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -27,14 +16,6 @@ export default function Dashboard() {
   const { data: medicines, isLoading: medsLoading } = useMedicines();
   const deleteAlarm = useDeleteAlarm();
   const updateAlarm = useUpdateAlarm();
-  const [activeAlarms, setActiveAlarms] = useState<Set<number>>(new Set());
-  const [activeMeds, setActiveMeds] = useState<Set<number>>(new Set());
-  const [dismissedAlarms, setDismissedAlarms] = useState<Map<number, string>>(new Map());
-  const [dismissedMeds, setDismissedMeds] = useState<Map<number, string>>(new Map());
-  const [activeAlarmPopup, setActiveAlarmPopup] = useState<ActiveAlarmData | null>(null);
-  const [snoozeTimeout, setSnoozeTimeout] = useState<NodeJS.Timeout | null>(null);
-  const vibrateIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const isSpeakingRef = useRef<boolean>(false);
 
   const formatTimeTo12Hour = (time24: string) => {
     const [hours, minutes] = time24.split(':');
@@ -50,250 +31,8 @@ export default function Dashboard() {
     return parseInt(timeA) - parseInt(timeB);
   });
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = new Date();
-      const currentTime = format(now, "HH:mm");
-      const currentDay = format(now, "EEE"); 
-      const currentDate = format(now, "yyyy-MM-dd");
-
-      alarms?.forEach(alarm => {
-        if (!alarm.isActive) return;
-
-        const isTimeMatch = alarm.time === currentTime;
-        const isDayMatch = alarm.days?.includes(currentDay);
-        const isDateMatch = alarm.date === currentDate;
-        const wasDismissedThisMinute = dismissedAlarms.get(alarm.id) === currentTime;
-
-        if (isTimeMatch && (isDayMatch || isDateMatch || (!alarm.days?.length && !alarm.date))) {
-          if (!activeAlarms.has(alarm.id) && !wasDismissedThisMinute) {
-            triggerAlarm(alarm, 'alarm');
-            setActiveAlarms(prev => new Set(prev).add(alarm.id));
-            if (isDateMatch) updateAlarm.mutate({ id: alarm.id, isActive: false });
-          }
-        } else {
-          if (activeAlarms.has(alarm.id) && !activeAlarmPopup) {
-            setActiveAlarms(prev => {
-              const next = new Set(prev);
-              next.delete(alarm.id);
-              return next;
-            });
-          }
-          if (dismissedAlarms.has(alarm.id) && dismissedAlarms.get(alarm.id) !== currentTime) {
-            setDismissedAlarms(prev => {
-              const next = new Map(prev);
-              next.delete(alarm.id);
-              return next;
-            });
-          }
-        }
-      });
-
-      medicines?.forEach(med => {
-        const isTimeMatch = med.times?.includes(currentTime);
-        const wasDismissedThisMinute = dismissedMeds.get(med.id) === currentTime;
-        
-        if (isTimeMatch) {
-          if (!activeMeds.has(med.id) && !wasDismissedThisMinute) {
-            triggerAlarm(med, 'medicine');
-            setActiveMeds(prev => new Set(prev).add(med.id));
-          }
-        } else {
-          if (activeMeds.has(med.id) && !activeAlarmPopup) {
-            setActiveMeds(prev => {
-              const next = new Set(prev);
-              next.delete(med.id);
-              return next;
-            });
-          }
-          if (dismissedMeds.has(med.id) && dismissedMeds.get(med.id) !== currentTime) {
-            setDismissedMeds(prev => {
-              const next = new Map(prev);
-              next.delete(med.id);
-              return next;
-            });
-          }
-        }
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [alarms, medicines, activeAlarms, activeMeds, activeAlarmPopup, dismissedAlarms, dismissedMeds]);
-
-  const triggerAlarm = (item: any, type: 'alarm' | 'medicine') => {
-    console.log(`Triggering ${type}:`, item.id);
-    const duration = (item.duration || 30) * 1000;
-    const shouldLoop = item.loop !== false;
-    let audio: HTMLAudioElement | undefined;
-
-    const message = item.textToSpeak || item.title || (type === 'medicine' ? `Time for medicine: ${item.name}` : 'Alarm');
-
-    setActiveAlarmPopup({
-      id: item.id,
-      type,
-      title: item.title || item.name || 'Alarm',
-      message,
-      imageUrl: item.imageUrl || item.photoUrl,
-    });
-
-    if (item.type === "vibration") {
-      if ('vibrate' in navigator) {
-        const vibratePattern = () => {
-          navigator.vibrate([500, 200, 500, 200, 500]);
-        };
-        vibratePattern();
-        if (vibrateIntervalRef.current) clearInterval(vibrateIntervalRef.current);
-        vibrateIntervalRef.current = setInterval(vibratePattern, 2000);
-        setTimeout(() => {
-          if (vibrateIntervalRef.current) {
-            clearInterval(vibrateIntervalRef.current);
-            vibrateIntervalRef.current = null;
-          }
-        }, duration);
-      }
-    } else if ((item.type === "custom_voice" || item.type === "music") && item.voiceUrl) {
-      audio = new Audio(item.voiceUrl);
-      audio.loop = shouldLoop;
-      audio.play().catch(err => {
-        console.error("Audio playback failed:", err);
-        if (item.textToSpeak) speakTTS(item, type, shouldLoop);
-      });
-      
-      setActiveAlarmPopup(prev => prev ? { ...prev, audio } : null);
-
-      setTimeout(() => {
-        audio?.pause();
-        if (audio) audio.src = "";
-      }, duration);
-
-    } else if (item.textToSpeak || type === 'medicine' || item.type === 'speaking') {
-      const msg = item.textToSpeak || (type === 'medicine' ? `Time for your medicine: ${item.name}` : item.title || "Alarm");
-      if (msg) {
-        speakTTS({ ...item, textToSpeak: msg }, type, shouldLoop);
-        setTimeout(() => {
-          window.speechSynthesis.cancel();
-        }, duration);
-      }
-    }
-  };
-
-  const speakTTS = (item: any, type: 'alarm' | 'medicine', shouldLoop: boolean = true) => {
-    isSpeakingRef.current = true;
-    
-    const speak = () => {
-      if (!isSpeakingRef.current) return;
-      
-      const utterance = new SpeechSynthesisUtterance(item.textToSpeak || "");
-      const lang = user?.language || item.language || 'english';
-      
-      const langMap: Record<string, string> = {
-        english: 'en-US', hindi: 'hi-IN', marathi: 'mr-IN', spanish: 'es-ES',
-        french: 'fr-FR', german: 'de-DE', chinese: 'zh-CN', japanese: 'ja-JP',
-        arabic: 'ar-SA', russian: 'ru-RU', portuguese: 'pt-PT', bengali: 'bn-IN',
-        telugu: 'te-IN', tamil: 'ta-IN', gujarati: 'gu-IN', kannada: 'kn-IN',
-        malayalam: 'ml-IN', punjabi: 'pa-IN'
-      };
-      
-      utterance.lang = langMap[lang] || 'en-US';
-      
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)) && v.name.includes(item.voiceGender === 'male' ? 'Male' : 'Female')) || 
-                      voices.find((v: any) => v.lang.startsWith(utterance.lang.slice(0, 2)));
-      
-      if (preferred) utterance.voice = preferred;
-      
-      utterance.onend = () => {
-        if (shouldLoop && isSpeakingRef.current) {
-          setTimeout(speak, 500);
-        }
-      };
-
-      window.speechSynthesis.speak(utterance);
-    };
-
-    window.speechSynthesis.cancel(); 
-    speak();
-  };
-
-  const dismissAlarm = () => {
-    isSpeakingRef.current = false;
-    window.speechSynthesis.cancel();
-    
-    if (vibrateIntervalRef.current) {
-      clearInterval(vibrateIntervalRef.current);
-      vibrateIntervalRef.current = null;
-    }
-    if ('vibrate' in navigator) navigator.vibrate(0);
-    
-    if (activeAlarmPopup) {
-      if (activeAlarmPopup.audio) {
-        activeAlarmPopup.audio.pause();
-        activeAlarmPopup.audio.src = "";
-      }
-      
-      const currentTime = format(new Date(), "HH:mm");
-      
-      if (activeAlarmPopup.type === 'alarm') {
-        setActiveAlarms(prev => {
-          const next = new Set(prev);
-          next.delete(activeAlarmPopup.id);
-          return next;
-        });
-        setDismissedAlarms(prev => {
-          const next = new Map(prev);
-          next.set(activeAlarmPopup.id, currentTime);
-          return next;
-        });
-      } else {
-        setActiveMeds(prev => {
-          const next = new Set(prev);
-          next.delete(activeAlarmPopup.id);
-          return next;
-        });
-        setDismissedMeds(prev => {
-          const next = new Map(prev);
-          next.set(activeAlarmPopup.id, currentTime);
-          return next;
-        });
-      }
-      setActiveAlarmPopup(null);
-    }
-    if (snoozeTimeout) {
-      clearTimeout(snoozeTimeout);
-      setSnoozeTimeout(null);
-    }
-  };
-
-  const snoozeAlarm = (minutes: number = 5) => {
-    isSpeakingRef.current = false;
-    window.speechSynthesis.cancel();
-    
-    if (vibrateIntervalRef.current) {
-      clearInterval(vibrateIntervalRef.current);
-      vibrateIntervalRef.current = null;
-    }
-    if ('vibrate' in navigator) navigator.vibrate(0);
-    
-    if (activeAlarmPopup) {
-      if (activeAlarmPopup.audio) {
-        activeAlarmPopup.audio.pause();
-        activeAlarmPopup.audio.src = "";
-      }
-      
-      const alarmData = activeAlarmPopup;
-      setActiveAlarmPopup(null);
-
-      const timeout = setTimeout(() => {
-        const item = alarmData.type === 'alarm' 
-          ? alarms?.find(a => a.id === alarmData.id)
-          : medicines?.find(m => m.id === alarmData.id);
-        if (item) {
-          triggerAlarm(item, alarmData.type);
-        }
-      }, minutes * 60 * 1000);
-      
-      setSnoozeTimeout(timeout);
-    }
+  const handlePlayAlarm = (alarm: any) => {
+    window.dispatchEvent(new CustomEvent('trigger-alarm', { detail: { alarm, type: 'alarm' } }));
   };
 
   const getAlarmTypeIcon = (type: string) => {
@@ -317,57 +56,6 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <Dialog open={!!activeAlarmPopup} onOpenChange={(open) => !open && dismissAlarm()}>
-        <DialogContent className="sm:max-w-md bg-white border-0 shadow-2xl rounded-2xl p-0 overflow-hidden">
-          <div className="bg-gradient-to-br from-[#002E6E] to-[#001a40] p-6 text-white">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                <span className="text-lg font-bold">{activeAlarmPopup?.type === 'alarm' ? 'Alarm' : 'Medicine Reminder'}</span>
-              </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={dismissAlarm}
-                className="text-white hover:bg-white/20 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">{activeAlarmPopup?.title}</h2>
-            <p className="text-blue-200 text-lg">{activeAlarmPopup?.message}</p>
-          </div>
-          
-          {activeAlarmPopup?.imageUrl && (
-            <div className="p-4">
-              <img 
-                src={activeAlarmPopup.imageUrl} 
-                alt="Reminder" 
-                className="w-full rounded-xl object-contain max-h-64 bg-slate-50"
-              />
-            </div>
-          )}
-          
-          <div className="p-6 pt-2 space-y-3">
-            <Button 
-              onClick={() => snoozeAlarm(5)}
-              variant="outline"
-              className="w-full h-12 text-lg rounded-xl border-2 border-[#00BAF2] text-[#00BAF2] hover:bg-[#00BAF2]/10 font-semibold"
-              data-testid="button-remind-later"
-            >
-              Remind Me Later (5 min)
-            </Button>
-            <Button 
-              onClick={dismissAlarm}
-              className="w-full h-12 text-lg rounded-xl bg-[#002E6E] hover:bg-[#002E6E]/90 text-white font-semibold"
-              data-testid="button-done"
-            >
-              Done
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
           <h1 className="text-4xl font-bold text-[#002E6E] mb-2 italic">{t.myRoutine}</h1>
@@ -434,7 +122,7 @@ export default function Dashboard() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      onClick={() => triggerAlarm(alarm, 'alarm')}
+                      onClick={() => handlePlayAlarm(alarm)}
                       className="text-[#002E6E] hover:text-[#00BAF2] hover:bg-blue-50 w-8 h-8 rounded-full"
                       data-testid={`button-play-${alarm.id}`}
                     >

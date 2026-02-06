@@ -44,7 +44,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push notification event - handles background alarms
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received');
   
@@ -71,7 +70,18 @@ self.addEventListener('push', (event) => {
       url: '/',
       type: data.type || 'alarm',
       alarmId: data.id,
-      textToSpeak: data.textToSpeak
+      textToSpeak: data.textToSpeak,
+      alarmType: data.alarmType,
+      voiceUrl: data.voiceUrl,
+      imageUrl: data.imageUrl,
+      language: data.language,
+      duration: data.duration,
+      loop: data.loop,
+      photoUrl: data.photoUrl,
+      dosage: data.dosage,
+      voiceGender: data.voiceGender,
+      title: data.title,
+      body: data.body
     },
     actions: [
       { action: 'snooze', title: 'Snooze 5 min' },
@@ -80,11 +90,23 @@ self.addEventListener('push', (event) => {
   };
   
   event.waitUntil(
-    self.registration.showNotification(data.title || 'MyPA Alarm', options)
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      if (clients.length > 0) {
+        let messageSent = false;
+        clients.forEach((client) => {
+          client.postMessage({ type: 'ALARM_TRIGGER', data: data });
+          messageSent = true;
+        });
+        if (!messageSent) {
+          self.registration.showNotification(data.title || 'MyPA Alarm', options);
+        }
+      } else {
+        self.registration.showNotification(data.title || 'MyPA Alarm', options);
+      }
+    })
   );
 });
 
-// Notification click event
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event.action);
   
@@ -98,23 +120,48 @@ self.addEventListener('notificationclick', (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ alarmId: data.alarmId, minutes: 5 })
     }).catch(console.error);
-  } else {
+    return;
+  }
+  
+  if (event.action === 'dismiss') {
+    console.log('[SW] Alarm dismissed from notification');
+    return;
+  }
+  
+  {
+    const alarmParams = new URLSearchParams();
+    if (data.alarmId) alarmParams.set('alarm_id', String(data.alarmId));
+    if (data.type) alarmParams.set('alarm_type', data.type);
+    if (data.alarmType) alarmParams.set('alarm_sound_type', data.alarmType);
+    if (data.textToSpeak) alarmParams.set('alarm_text', data.textToSpeak);
+    if (data.voiceUrl) alarmParams.set('alarm_voice_url', data.voiceUrl);
+    if (data.imageUrl) alarmParams.set('alarm_image_url', data.imageUrl);
+    if (data.title) alarmParams.set('alarm_title', data.title);
+    if (data.body) alarmParams.set('alarm_body', data.body);
+    if (data.language) alarmParams.set('alarm_language', data.language);
+    if (data.duration) alarmParams.set('alarm_duration', String(data.duration));
+    if (data.voiceGender) alarmParams.set('alarm_voice_gender', data.voiceGender);
+    if (data.photoUrl) alarmParams.set('alarm_photo_url', data.photoUrl);
+    if (data.dosage) alarmParams.set('alarm_dosage', data.dosage);
+    
+    const targetUrl = '/?' + alarmParams.toString();
+    
     event.waitUntil(
-      clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
         for (const client of clientList) {
           if (client.url.includes(self.location.origin) && 'focus' in client) {
+            client.postMessage({ type: 'ALARM_TRIGGER', data: data });
             return client.focus();
           }
         }
-        if (clients.openWindow) {
-          return clients.openWindow(data.url || '/');
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
         }
       })
     );
   }
 });
 
-// Notification close event  
 self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed');
 });

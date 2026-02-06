@@ -35,6 +35,16 @@ export interface PushPayload {
   type: 'alarm' | 'medicine' | 'meeting';
   id?: number;
   textToSpeak?: string;
+  alarmType?: string;
+  voiceUrl?: string;
+  imageUrl?: string;
+  language?: string;
+  days?: string[];
+  duration?: number;
+  loop?: boolean;
+  photoUrl?: string;
+  dosage?: string;
+  voiceGender?: string;
 }
 
 export async function sendPushNotification(

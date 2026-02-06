@@ -15,6 +15,7 @@ import Settings from "@/pages/settings";
 import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import { PushNotificationPrompt } from "@/components/push-notification-prompt";
+import { GlobalAlarmHandler } from "@/components/global-alarm-handler";
 
 function Router() {
   const { user, isLoading } = useAuth();
@@ -33,14 +34,17 @@ function Router() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/routine" component={Routine} />
-      <Route path="/medicines" component={Medicines} />
-      <Route path="/meetings" component={Meetings} />
-      <Route path="/settings" component={Settings} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/routine" component={Routine} />
+        <Route path="/medicines" component={Medicines} />
+        <Route path="/meetings" component={Meetings} />
+        <Route path="/settings" component={Settings} />
+        <Route component={NotFound} />
+      </Switch>
+      <GlobalAlarmHandler />
+    </>
   );
 }
 
