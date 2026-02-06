@@ -30,7 +30,7 @@ async function initStripe() {
     const stripeSync = await getStripeSync();
 
     console.log('[Stripe] Setting up webhook...');
-    const domain = process.env.REPLIT_DOMAINS?.split(',')[0];
+    const domain = process.env.APP_DOMAIN || process.env.REPLIT_DOMAINS?.split(',')[0];
     if (domain) {
       try {
         const result = await stripeSync.findOrCreateManagedWebhook(
