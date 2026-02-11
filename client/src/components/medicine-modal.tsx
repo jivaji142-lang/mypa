@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pill, Plus, Loader2, Camera, Image as ImageIcon, X, Volume2, Mic, Music, Vibrate } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCreateMedicine, useUpdateMedicine } from "@/hooks/use-medicines";
-import { useUpload } from "@/hooks/use-upload";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
@@ -43,7 +42,6 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
   const [open, setOpen] = useState(false);
   const createMedicine = useCreateMedicine();
   const updateMedicine = useUpdateMedicine();
-  const upload = useUpload();
   
   const [formData, setFormData] = useState({
     name: "",
@@ -113,20 +111,11 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'voiceUrl' | 'photoUrl') => {
     const file = e.target.files?.[0];
     if (file) {
-      if (field === 'voiceUrl' || field === 'photoUrl') {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onloadend = () => {
-          setFormData(prev => ({ ...prev, [field]: reader.result as string }));
-        };
-      }
-      upload.mutate(file, {
-        onSuccess: (data) => {
-          if (field === 'photoUrl') {
-            setFormData(prev => ({ ...prev, photoUrl: data.url }));
-          }
-        }
-      });
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, [field]: reader.result as string }));
+      };
     }
   };
 
@@ -255,9 +244,8 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
                   reader.onloadend = () => {
                     setFormData(prev => ({ ...prev, voiceUrl: reader.result as string }));
                   };
-                  upload.mutate(blob);
                 }} 
-                isUploading={upload.isPending} 
+                isUploading={false} 
               />
             )}
 
@@ -425,7 +413,7 @@ export function MedicineModal({ medicine, trigger }: MedicineModalProps) {
 
           <Button 
             type="submit" 
-            disabled={createMedicine.isPending || updateMedicine.isPending || upload.isPending}
+            disabled={createMedicine.isPending || updateMedicine.isPending}
             className="w-full h-12 text-lg rounded-xl bg-[#002E6E] hover:bg-[#002E6E]/90 text-white font-semibold shadow-lg shadow-blue-900/10 italic"
           >
             {(createMedicine.isPending || updateMedicine.isPending) ? <Loader2 className="animate-spin" /> : medicine ? "Update Medicine" : "Add Medicine"}

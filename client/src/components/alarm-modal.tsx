@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Loader2, Camera, Image as ImageIcon, Volume2, Mic, Music, Vibrate } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCreateAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
-import { useUpload } from "@/hooks/use-upload";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
@@ -24,7 +23,6 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
   const [open, setOpen] = useState(false);
   const createAlarm = useCreateAlarm();
   const updateAlarm = useUpdateAlarm();
-  const upload = useUpload();
   
   const [formData, setFormData] = useState({
     title: "",
@@ -303,9 +301,8 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
                 reader.onloadend = () => {
                   setFormData(prev => ({ ...prev, voiceUrl: reader.result as string }));
                 };
-                upload.mutate(blob);
               }} 
-              isUploading={upload.isPending} 
+              isUploading={false} 
             />
           )}
 
@@ -403,7 +400,6 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
             disabled={
               createAlarm.isPending || 
               updateAlarm.isPending || 
-              upload.isPending ||
               (formData.type === "custom_voice" && !formData.voiceUrl) ||
               (formData.type === "music" && !formData.voiceUrl)
             }

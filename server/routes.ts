@@ -13,6 +13,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { getVapidPublicKey, savePushSubscription, removePushSubscription, sendPushNotification } from "./pushNotification";
 import { startAlarmScheduler } from "./alarmScheduler";
+import multer from "multer";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -175,11 +176,15 @@ export async function registerRoutes(
     res.json(user);
   });
 
-  // Upload (Mock)
-  app.post(api.upload.create.path, async (req, res) => {
-    // In a real app, use multer to save to disk or S3
-    // Here we just return a mock URL
-    res.json({ url: "https://placehold.co/400" });
+  const uploadStorage = multer.memoryStorage();
+  const uploadMiddleware = multer({ storage: uploadStorage, limits: { fileSize: 10 * 1024 * 1024 } });
+  app.post(api.upload.create.path, uploadMiddleware.single("file"), async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const base64 = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    res.json({ url: base64 });
   });
 
   // Helper to sanitize user response (exclude sensitive fields)
