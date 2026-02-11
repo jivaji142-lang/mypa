@@ -133,9 +133,8 @@ export async function registerRoutes(
   app.post(api.meetings.create.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const validated = api.meetings.create.input.parse(req.body);
       const input = {
-        ...validated,
+        ...req.body,
         userId: (req.user as any).id
       };
       const meeting = await storage.createMeeting(input);
@@ -152,18 +151,13 @@ export async function registerRoutes(
   app.patch(api.meetings.update.path, async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
     try {
-      const validated = api.meetings.update.input.parse(req.body);
       const input = {
-        ...validated,
+        ...req.body,
         userId: (req.user as any).id
       };
       const meeting = await storage.updateMeeting(Number(req.params.id), input);
       res.json(meeting);
     } catch (err) {
-      if (err instanceof z.ZodError) {
-        res.status(400).json({ message: err.errors[0].message });
-        return;
-      }
       res.status(404).json({ message: "Meeting not found" });
     }
   });
