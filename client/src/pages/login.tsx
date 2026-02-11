@@ -276,10 +276,6 @@ export default function Login() {
                 )}
               </form>
               
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-                <p className="font-medium mb-1">Phone OTP requires setup</p>
-                <p>Contact admin to enable SMS verification service.</p>
-              </div>
             </TabsContent>
           </Tabs>
 
