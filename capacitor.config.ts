@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'MyPA',
   webDir: 'dist/public',
   server: {
+    url: 'https://1e19c106-01bc-42d8-881c-29ebe24b935a-00-3bs057jl7dfu2.riker.replit.dev',
     androidScheme: 'https',
     cleartext: true
   },
