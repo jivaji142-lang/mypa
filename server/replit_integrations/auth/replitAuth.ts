@@ -86,11 +86,11 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Skip OIDC setup if not running on Replit (local development)
+  // Use Email/Password auth if not running on Replit
   if (!process.env.REPL_ID) {
-    console.log('[Auth] Running in local mode - Replit OIDC disabled');
-    passport.serializeUser((user: Express.User, cb) => cb(null, user));
-    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+    console.log('[Auth] Running outside Replit - using Email/Password authentication');
+    const { setupLocalAuth } = await import('./localAuth');
+    setupLocalAuth(app);
     return;
   }
 
