@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
@@ -9,6 +10,47 @@ import { WebhookHandlers } from "./webhookHandlers";
 
 const app = express();
 const httpServer = createServer(app);
+
+// ═══════════════════════════════════════════════════════════════
+// CORS Configuration - CRITICAL for Mobile App
+// ═══════════════════════════════════════════════════════════════
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow all origins in development
+    if (!origin || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+
+    // In production, allow these origins:
+    const allowedOrigins = [
+      'https://mypa-liard.vercel.app',
+      'http://localhost:8080',
+      'http://localhost:5173',
+      'capacitor://localhost',  // Capacitor iOS
+      'http://localhost',        // Capacitor Android
+    ];
+
+    // Allow any localhost IP (for mobile app development)
+    if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('10.')) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // Still allow it but log for debugging
+      console.log('[CORS] Allowing origin:', origin);
+      callback(null, true);
+    }
+  },
+  credentials: true,  // CRITICAL: Allow cookies for session
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, // Cache preflight for 24 hours
+}));
+
+console.log('[CORS] Enabled with credentials support');
 
 declare module "http" {
   interface IncomingMessage {

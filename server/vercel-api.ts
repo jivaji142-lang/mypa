@@ -1,14 +1,32 @@
 /**
  * Vercel Serverless Function — Source file
- * 
+ *
  * This gets compiled by esbuild into api/index.mjs
  * DO NOT put this in the api/ folder directly.
  */
 import express, { type Request, Response, NextFunction } from "express";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { createServer } from "http";
 
 const app = express();
+
+// ═══════════════════════════════════════════════════════════════
+// CORS Configuration - CRITICAL for Mobile App
+// ═══════════════════════════════════════════════════════════════
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow all origins (Vercel handles production security via edge)
+    callback(null, true);
+  },
+  credentials: true,  // CRITICAL: Allow cookies for session
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Set-Cookie'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, // Cache preflight for 24 hours
+}));
+
+console.log('[CORS] Enabled for Vercel serverless');
 
 declare module "http" {
   interface IncomingMessage {

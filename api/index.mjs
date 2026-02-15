@@ -352,6 +352,7 @@ var init_localAuth = __esm({
 
 // server/vercel-api.ts
 import express from "express";
+import cors from "cors";
 
 // server/storage.ts
 init_db();
@@ -1807,6 +1808,19 @@ async function registerRoutes(httpServer2, app2) {
 // server/vercel-api.ts
 import { createServer } from "http";
 var app = express();
+app.use(cors({
+  origin: function(origin, callback) {
+    callback(null, true);
+  },
+  credentials: true,
+  // CRITICAL: Allow cookies for session
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Cookie", "Set-Cookie"],
+  exposedHeaders: ["Set-Cookie"],
+  maxAge: 86400
+  // Cache preflight for 24 hours
+}));
+console.log("[CORS] Enabled for Vercel serverless");
 app.set("etag", "weak");
 app.set("trust proxy", 1);
 app.use(
