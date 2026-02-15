@@ -61,7 +61,8 @@ export function getSession() {
       sameSite: isProduction ? 'none' : 'lax', // CRITICAL FIX: 'none' for cross-origin in prod
       maxAge: sessionTtl,
       path: '/',                // Cookie available on all routes
-      domain: isProduction ? '.vercel.app' : undefined, // Allow subdomain sharing
+      // CRITICAL: No domain restriction for cross-origin cookie support (mobile app)
+      domain: undefined,
     },
   });
 }

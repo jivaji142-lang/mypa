@@ -682,8 +682,8 @@ function getSession() {
       maxAge: sessionTtl,
       path: "/",
       // Cookie available on all routes
-      domain: isProduction ? ".vercel.app" : void 0
-      // Allow subdomain sharing
+      // CRITICAL: No domain restriction for cross-origin cookie support (mobile app)
+      domain: void 0
     }
   });
 }
