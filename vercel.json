@@ -20,12 +20,6 @@
       "destination": "/dist/public/index.html"
     }
   ],
-  "crons": [
-    {
-      "path": "/api/cron/check-alarms",
-      "schedule": "* * * * *"
-    }
-  ],
   "env": {
     "DATABASE_URL": "@database-url",
     "SESSION_SECRET": "@session-secret",
@@ -33,4 +27,3 @@
     "VAPID_PRIVATE_KEY": "@vapid-private-key"
   }
 }
-
