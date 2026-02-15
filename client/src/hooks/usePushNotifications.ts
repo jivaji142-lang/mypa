@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiRequest } from '@/lib/queryClient';
+import { getApiUrl } from '@/lib/config';
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -47,7 +48,7 @@ export function usePushNotifications() {
       await navigator.serviceWorker.ready;
 
       // Get VAPID public key
-      const keyResponse = await fetch('/api/push/vapid-key');
+      const keyResponse = await fetch(getApiUrl('/api/push/vapid-key'));
       const { publicKey } = await keyResponse.json();
 
       if (!publicKey) {

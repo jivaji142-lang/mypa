@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/config";
 
 export function useUpload() {
   const { toast } = useToast();
@@ -11,7 +12,7 @@ export function useUpload() {
       // Name 'file' is conventional, adjust if server expects something else
       formData.append("file", file);
 
-      const res = await fetch(api.upload.create.path, {
+      const res = await fetch(getApiUrl(api.upload.create.path), {
         method: api.upload.create.method,
         body: formData,
         credentials: "include",

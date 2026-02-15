@@ -2,12 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertMedicine, type Medicine } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { getApiUrl } from "@/lib/config";
 
 export function useMedicines() {
   return useQuery({
     queryKey: [api.medicines.list.path],
     queryFn: async () => {
-      const res = await fetch(api.medicines.list.path, { credentials: "include" });
+      const res = await fetch(getApiUrl(api.medicines.list.path), { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch medicines");
       return api.medicines.list.responses[200].parse(await res.json());
     },
@@ -21,7 +22,7 @@ export function useCreateMedicine() {
   return useMutation({
     mutationFn: async (data: InsertMedicine) => {
       const validated = api.medicines.create.input.parse(data);
-      const res = await fetch(api.medicines.create.path, {
+      const res = await fetch(getApiUrl(api.medicines.create.path), {
         method: api.medicines.create.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(validated),
@@ -54,8 +55,8 @@ export function useUpdateMedicine() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: number } & Partial<InsertMedicine>) => {
       const validated = api.medicines.update.input.parse(updates);
-      const url = buildUrl(api.medicines.update.path, { id });
-      
+      const url = getApiUrl(buildUrl(api.medicines.update.path, { id }));
+
       const res = await fetch(url, {
         method: api.medicines.update.method,
         headers: { "Content-Type": "application/json" },
@@ -82,7 +83,7 @@ export function useDeleteMedicine() {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      const url = buildUrl(api.medicines.delete.path, { id });
+      const url = getApiUrl(buildUrl(api.medicines.delete.path, { id }));
       const res = await fetch(url, { method: api.medicines.delete.method, credentials: "include" });
       if (!res.ok) throw new Error("Failed to delete medicine");
     },
