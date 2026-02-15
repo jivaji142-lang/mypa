@@ -19,11 +19,5 @@
       "source": "/((?!api/).*)",
       "destination": "/dist/public/index.html"
     }
-  ],
-  "env": {
-    "DATABASE_URL": "@database-url",
-    "SESSION_SECRET": "@session-secret",
-    "VAPID_PUBLIC_KEY": "@vapid-public-key",
-    "VAPID_PRIVATE_KEY": "@vapid-private-key"
-  }
+  ]
 }
