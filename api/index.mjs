@@ -864,12 +864,13 @@ function isAuthenticatedAny(req) {
       return true;
     }
   }
-  req.user = { id: "a925e5ff-ff61-40c5-b722-1c5256957115" };
-  return true;
+  return false;
 }
 function getUserId(req) {
-  isAuthenticatedAny(req);
-  return req.user?.id || "a925e5ff-ff61-40c5-b722-1c5256957115";
+  if (!isAuthenticatedAny(req)) {
+    return null;
+  }
+  return req.user?.id || null;
 }
 
 // server/replit_integrations/auth/routes.ts

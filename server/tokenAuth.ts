@@ -143,41 +143,41 @@ export async function handleGetTokenUser(req: Request, res: Response) {
 /**
  * Helper: Check if request is authenticated (session OR token)
  *
- * AUTHENTICATION DISABLED FOR DEVELOPMENT
- * Always returns true - no 401 errors
+ * PRODUCTION-READY MULTI-USER AUTHENTICATION
+ * Supports both session-based and token-based auth
  */
 export function isAuthenticatedAny(req: Request): boolean {
-  // DISABLED: Always allow all requests (no 401)
-  // This makes the app work without authentication for testing
-
-  // Try to get user from session or token if available
+  // Check session-based auth (passport)
   if (req.isAuthenticated && req.isAuthenticated()) {
     return true; // User from session
   }
 
+  // Check token-based auth (JWT)
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     const payload = verifyToken(token);
     if (payload) {
+      // Attach user to request (compatible with session auth)
       (req as any).user = { id: payload.userId };
-      return true; // User from token
+      return true; // User from valid token
     }
   }
 
-  // NO SESSION/TOKEN: Create a default test user
-  // This prevents 401 errors - all APIs work without login
-  (req as any).user = { id: 'a925e5ff-ff61-40c5-b722-1c5256957115' }; // test121@gmail.com
-  return true; // Always allow
+  // No valid authentication found
+  return false;
 }
 
 /**
  * Helper: Get user ID from request (session OR token)
+ * Returns null if user is not authenticated
  */
 export function getUserId(req: Request): string | null {
   // Try to ensure auth first
-  isAuthenticatedAny(req);
+  if (!isAuthenticatedAny(req)) {
+    return null;
+  }
 
-  // Return user ID (will be test user if not logged in)
-  return (req as any).user?.id || 'a925e5ff-ff61-40c5-b722-1c5256957115';
+  // Return authenticated user ID
+  return (req as any).user?.id || null;
 }
