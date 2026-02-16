@@ -4,11 +4,8 @@ const config: CapacitorConfig = {
   appId: 'com.mypa.app',
   appName: 'MyPA',
   webDir: 'dist/public',
-  server: {
-    url: 'https://mypa-app.vercel.app',
-    androidScheme: 'http',
-    cleartext: true
-  },
+  // Server URL removed - app loads from bundled files
+  // API calls go to: https://mypa-liard.vercel.app (defined in client/src/lib/config.ts)
   plugins: {
     LocalNotifications: {
       smallIcon: "ic_stat_icon",
