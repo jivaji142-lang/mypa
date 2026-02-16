@@ -16,7 +16,6 @@
         <domain includeSubdomains="true">192.168.1.8</domain>
         <domain includeSubdomains="true">10.195.157.10</domain>
         <domain includeSubdomains="true">mypa-app.vercel.app</domain>
-         <domain includeSubdomains="true">mypa-liard.vercel.app</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">10.0.3.2</domain>
     </domain-config>
