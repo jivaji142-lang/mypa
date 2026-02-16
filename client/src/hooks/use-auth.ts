@@ -1,13 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@shared/models/auth";
 import { getApiUrl } from "@/lib/config";
+import { getToken, removeToken } from "@/lib/tokenStorage";
 
 async function fetchUser(): Promise<User | null> {
+  // Get token from localStorage
+  const token = getToken();
+
+  // Prepare headers
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(getApiUrl("/api/auth/user"), {
-    credentials: "include",
+    headers,
+    credentials: "include", // Keep for session fallback
   });
 
   if (response.status === 401) {
+    // Token invalid or expired - clear it
+    if (token) {
+      removeToken();
+      console.log('[Auth] Token invalid, cleared from storage');
+    }
     return null;
   }
 
@@ -19,7 +35,12 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
-  window.location.href = getApiUrl("/api/logout");
+  // Clear token from localStorage
+  removeToken();
+  console.log('[Auth] Logged out, token cleared');
+
+  // Redirect to login (or reload page)
+  window.location.href = "/";
 }
 
 export function useAuth() {

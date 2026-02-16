@@ -9,6 +9,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle } from "react-icons/si";
+import { saveToken } from "@/lib/tokenStorage";
 
 export default function Login() {
   const { toast } = useToast();
@@ -25,7 +26,8 @@ export default function Login() {
 
   const emailAuth = useMutation({
     mutationFn: async (data: { email: string; password: string; name?: string; isSignup: boolean }) => {
-      const endpoint = data.isSignup ? "/api/auth/signup" : "/api/auth/login";
+      // Use token-login for authentication (returns JWT token)
+      const endpoint = data.isSignup ? "/api/auth/signup" : "/api/auth/token-login";
       const res = await apiRequest("POST", endpoint, data);
       if (!res.ok) {
         const error = await res.json();
@@ -33,8 +35,17 @@ export default function Login() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Save JWT token to localStorage
+      if (data.token) {
+        saveToken(data.token);
+        console.log('[Login] Token saved to localStorage');
+      }
+
+      // Invalidate user query to refetch with new token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
+      // Reload to apply authentication
       window.location.reload();
     },
     onError: (error: Error) => {
