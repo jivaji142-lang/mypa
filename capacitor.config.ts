@@ -4,11 +4,8 @@ const config: CapacitorConfig = {
   appId: 'com.mypa.app',
   appName: 'MyPA',
   webDir: 'dist/public',
-  server: {
-    url: 'https://mypa-app.vercel.app',
-    androidScheme: 'http',
-    cleartext: true
-  },
+  // REMOVED server.url - App will load from bundled files (capacitor://localhost)
+  // This fixes cookie issues because capacitor:// is treated as HTTPS secure context
   plugins: {
     LocalNotifications: {
       smallIcon: "ic_stat_icon",
