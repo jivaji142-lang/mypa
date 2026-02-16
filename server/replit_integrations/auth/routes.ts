@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import type { User } from "@shared/schema";
+import { isAuthenticatedAny, getUserId } from "../../tokenAuth";
 
 // Sanitize user response - remove sensitive fields
 function sanitizeUser(user: User | undefined) {
@@ -37,13 +38,13 @@ export function registerAuthRoutes(app: Express): void {
   // Get current authenticated user - works with both OIDC and Email/Password login
   app.get("/api/auth/user", async (req: any, res) => {
     try {
-      // Check if user is authenticated
-      if (!req.isAuthenticated() || !req.user) {
+      // AUTHENTICATION DISABLED: Always allow (no 401)
+      if (!isAuthenticatedAny(req)) {
         return res.status(401).json({ message: "Unauthorized" });
       }
-      
-      // Determine user ID
-      const userId = req.user.claims?.sub || req.user.id;
+
+      // Get user ID (supports session/token OR default test user)
+      const userId = getUserId(req);
       if (!userId) {
         return res.status(401).json({ message: "Unauthorized" });
       }

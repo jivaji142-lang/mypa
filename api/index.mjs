@@ -771,94 +771,6 @@ init_storage();
 
 // server/replit_integrations/auth/routes.ts
 init_storage();
-function sanitizeUser(user) {
-  if (!user) return void 0;
-  const { passwordHash, ...safeUser } = user;
-  return safeUser;
-}
-var userCache = /* @__PURE__ */ new Map();
-var USER_CACHE_TTL = 60 * 1e3;
-function getCachedUser(userId) {
-  const entry = userCache.get(userId);
-  if (entry && Date.now() < entry.expiry) {
-    return entry.user;
-  }
-  userCache.delete(userId);
-  return null;
-}
-function setCachedUser(userId, user) {
-  userCache.set(userId, { user, expiry: Date.now() + USER_CACHE_TTL });
-}
-function invalidateUserCache(userId) {
-  userCache.delete(userId);
-}
-function registerAuthRoutes(app2) {
-  app2.get("/api/auth/user", async (req, res) => {
-    try {
-      if (!req.isAuthenticated() || !req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const userId = req.user.claims?.sub || req.user.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const cached = getCachedUser(userId);
-      if (cached) {
-        return res.json(cached);
-      }
-      const user = await authStorage.getUser(userId);
-      const sanitized = sanitizeUser(user);
-      if (sanitized) {
-        setCachedUser(userId, sanitized);
-      }
-      return res.json(sanitized);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-}
-
-// server/seed.ts
-async function seed() {
-  const existingAlarms = await storage.getAlarms(1);
-  if (existingAlarms.length > 0) return;
-  console.log("Seeding database...");
-  await storage.createAlarm({
-    userId: 1,
-    title: "Morning Wake Up",
-    time: "07:00",
-    days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-    isActive: true,
-    type: "speaking",
-    textToSpeak: "Good morning! It's time to wake up and conquer the day.",
-    voiceGender: "female"
-  });
-  await storage.createAlarm({
-    userId: 1,
-    title: "Water Reminder",
-    time: "10:00",
-    days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    isActive: true,
-    type: "text",
-    textToSpeak: "Drink some water to stay hydrated."
-  });
-  await storage.createMedicine({
-    userId: 1,
-    name: "Vitamin D",
-    timeOfDay: "morning",
-    dosage: "1 tablet",
-    photoUrl: "https://placehold.co/100?text=Vit+D"
-  });
-  await storage.createMedicine({
-    userId: 1,
-    name: "Omega 3",
-    timeOfDay: "afternoon",
-    dosage: "1 capsule",
-    photoUrl: "https://placehold.co/100?text=Omega3"
-  });
-  console.log("Seeding complete!");
-}
 
 // server/tokenAuth.ts
 init_storage();
@@ -958,6 +870,96 @@ function isAuthenticatedAny(req) {
 function getUserId(req) {
   isAuthenticatedAny(req);
   return req.user?.id || "a925e5ff-ff61-40c5-b722-1c5256957115";
+}
+
+// server/replit_integrations/auth/routes.ts
+function sanitizeUser(user) {
+  if (!user) return void 0;
+  const { passwordHash, ...safeUser } = user;
+  return safeUser;
+}
+var userCache = /* @__PURE__ */ new Map();
+var USER_CACHE_TTL = 60 * 1e3;
+function getCachedUser(userId) {
+  const entry = userCache.get(userId);
+  if (entry && Date.now() < entry.expiry) {
+    return entry.user;
+  }
+  userCache.delete(userId);
+  return null;
+}
+function setCachedUser(userId, user) {
+  userCache.set(userId, { user, expiry: Date.now() + USER_CACHE_TTL });
+}
+function invalidateUserCache(userId) {
+  userCache.delete(userId);
+}
+function registerAuthRoutes(app2) {
+  app2.get("/api/auth/user", async (req, res) => {
+    try {
+      if (!isAuthenticatedAny(req)) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const userId = getUserId(req);
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const cached = getCachedUser(userId);
+      if (cached) {
+        return res.json(cached);
+      }
+      const user = await authStorage.getUser(userId);
+      const sanitized = sanitizeUser(user);
+      if (sanitized) {
+        setCachedUser(userId, sanitized);
+      }
+      return res.json(sanitized);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+}
+
+// server/seed.ts
+async function seed() {
+  const existingAlarms = await storage.getAlarms(1);
+  if (existingAlarms.length > 0) return;
+  console.log("Seeding database...");
+  await storage.createAlarm({
+    userId: 1,
+    title: "Morning Wake Up",
+    time: "07:00",
+    days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    isActive: true,
+    type: "speaking",
+    textToSpeak: "Good morning! It's time to wake up and conquer the day.",
+    voiceGender: "female"
+  });
+  await storage.createAlarm({
+    userId: 1,
+    title: "Water Reminder",
+    time: "10:00",
+    days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    isActive: true,
+    type: "text",
+    textToSpeak: "Drink some water to stay hydrated."
+  });
+  await storage.createMedicine({
+    userId: 1,
+    name: "Vitamin D",
+    timeOfDay: "morning",
+    dosage: "1 tablet",
+    photoUrl: "https://placehold.co/100?text=Vit+D"
+  });
+  await storage.createMedicine({
+    userId: 1,
+    name: "Omega 3",
+    timeOfDay: "afternoon",
+    dosage: "1 capsule",
+    photoUrl: "https://placehold.co/100?text=Omega3"
+  });
+  console.log("Seeding complete!");
 }
 
 // server/routes.ts
