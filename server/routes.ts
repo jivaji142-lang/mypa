@@ -6,6 +6,7 @@ import { z } from "zod";
 import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { invalidateUserCache } from "./replit_integrations/auth/routes";
 import { seed } from "./seed";
+import { handleTokenLogin, handleGetTokenUser, requireToken, isAuthenticatedAny, getUserId } from "./tokenAuth";
 import bcrypt from "bcryptjs";
 import { getUncachableStripeClient, getStripePublishableKey } from "./stripeClient";
 import { sql } from "drizzle-orm";
@@ -24,23 +25,30 @@ export async function registerRoutes(
   // Auth Setup
   await setupAuth(app);
   registerAuthRoutes(app);
-  
+
+  // ═══════════════════════════════════════════════════════════════
+  // Token-Based Authentication (for Mobile App - works with HTTP)
+  // ═══════════════════════════════════════════════════════════════
+  app.post('/api/auth/token-login', handleTokenLogin);
+  app.get('/api/auth/token-user', requireToken, handleGetTokenUser);
+  console.log('[Token Auth] Routes registered: POST /api/auth/token-login, GET /api/auth/token-user');
+
   // Seed Database
   seed().catch(console.error);
 
   // Alarms
   app.get(api.alarms.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    const alarms = await storage.getAlarms((req.user as any).id);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
+    const alarms = await storage.getAlarms(getUserId(req));
     res.json(alarms);
   });
 
   app.post(api.alarms.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       let input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
       // Apply smart toggle logic - auto-set isActive based on future occurrences
       input = setAlarmActiveStatus(input);
@@ -56,11 +64,11 @@ export async function registerRoutes(
   });
 
   app.put(api.alarms.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       let input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
 
       // Detect if this is a manual toggle (only isActive is being updated)
@@ -85,24 +93,24 @@ export async function registerRoutes(
   });
 
   app.delete(api.alarms.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     await storage.deleteAlarm(Number(req.params.id));
     res.status(204).end();
   });
 
   // Medicines
   app.get(api.medicines.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    const medicines = await storage.getMedicines((req.user as any).id);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
+    const medicines = await storage.getMedicines(getUserId(req));
     res.json(medicines);
   });
 
   app.post(api.medicines.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       const input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
       const medicine = await storage.createMedicine(input);
       res.status(201).json(medicine);
@@ -116,11 +124,11 @@ export async function registerRoutes(
   });
 
   app.put(api.medicines.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       const input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
       const medicine = await storage.updateMedicine(Number(req.params.id), input);
       res.json(medicine);
@@ -134,24 +142,24 @@ export async function registerRoutes(
   });
 
   app.delete(api.medicines.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     await storage.deleteMedicine(Number(req.params.id));
     res.status(204).end();
   });
 
   // Meetings
   app.get(api.meetings.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    const meetings = await storage.getMeetings((req.user as any).id);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
+    const meetings = await storage.getMeetings(getUserId(req));
     res.json(meetings);
   });
 
   app.post(api.meetings.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       const input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
       const meeting = await storage.createMeeting(input);
       res.status(201).json(meeting);
@@ -165,11 +173,11 @@ export async function registerRoutes(
   });
 
   app.patch(api.meetings.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
       const input = {
         ...req.body,
-        userId: (req.user as any).id
+        userId: getUserId(req)
       };
       const meeting = await storage.updateMeeting(Number(req.params.id), input);
       res.json(meeting);
@@ -179,15 +187,15 @@ export async function registerRoutes(
   });
 
   app.delete(api.meetings.delete.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     await storage.deleteMeeting(Number(req.params.id));
     res.status(204).end();
   });
 
   // User Settings
   app.patch("/api/user/settings", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    const userId = (req.user as any).id;
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
+    const userId = getUserId(req);
     const user = await storage.updateUser(userId, req.body);
     // Invalidate user cache so next /api/auth/user gets fresh data
     invalidateUserCache(userId);
@@ -197,7 +205,7 @@ export async function registerRoutes(
   const uploadStorage = multer.memoryStorage();
   const uploadMiddleware = multer({ storage: uploadStorage, limits: { fileSize: 10 * 1024 * 1024 } });
   app.post(api.upload.create.path, uploadMiddleware.single("file"), async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
@@ -433,11 +441,11 @@ export async function registerRoutes(
   });
 
   app.post("/api/stripe/checkout", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     
     try {
       const { priceId } = req.body;
-      const userId = (req.user as any).id;
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -479,10 +487,10 @@ export async function registerRoutes(
   });
 
   app.get("/api/stripe/subscription", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     
     try {
-      const userId = (req.user as any).id;
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
       if (!user?.stripeSubscriptionId) {
@@ -504,10 +512,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/stripe/portal", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     
     try {
-      const userId = (req.user as any).id;
+      const userId = getUserId(req);
       const user = await storage.getUser(userId);
       
       if (!user?.stripeCustomerId) {
@@ -606,7 +614,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/razorpay/create-order", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
 
     if (!razorpay) {
       return res.status(503).json({ message: "Razorpay not configured" });
@@ -626,7 +634,7 @@ export async function registerRoutes(
         currency: "INR",
         receipt: `mypa_${Date.now()}`,
         notes: {
-          userId: (req.user as any).id,
+          userId: getUserId(req),
           plan: plan
         }
       });
@@ -644,7 +652,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/razorpay/verify-payment", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
 
     if (!razorpay) {
       return res.status(503).json({ message: "Razorpay not configured" });
@@ -652,7 +660,7 @@ export async function registerRoutes(
 
     try {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
-      const userId = (req.user as any).id;
+      const userId = getUserId(req);
       
       const body = razorpay_order_id + "|" + razorpay_payment_id;
       const expectedSignature = crypto
@@ -709,7 +717,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/push/subscribe", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     
     try {
       const { endpoint, keys } = req.body;
@@ -719,7 +727,7 @@ export async function registerRoutes(
       }
       
       await savePushSubscription(
-        (req.user as any).id,
+        getUserId(req),
         endpoint,
         keys.p256dh,
         keys.auth
@@ -748,10 +756,10 @@ export async function registerRoutes(
   });
 
   app.post("/api/push/test", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     
     try {
-      const result = await sendPushNotification((req.user as any).id, {
+      const result = await sendPushNotification(getUserId(req), {
         title: "MyPA Test",
         body: "Push notification working!",
         type: "alarm"

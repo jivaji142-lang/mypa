@@ -1,11 +1,31 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "./config";
+import { getToken } from "./tokenStorage";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
+}
+
+/**
+ * Get headers for API request (includes Authorization token if available)
+ */
+function getHeaders(includeContentType: boolean = false): HeadersInit {
+  const headers: HeadersInit = {};
+
+  if (includeContentType) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  // Add Authorization header if token exists
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return headers;
 }
 
 export async function apiRequest(
@@ -15,9 +35,9 @@ export async function apiRequest(
 ): Promise<Response> {
   const res = await fetch(getApiUrl(url), {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: getHeaders(!!data),
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+    credentials: "include", // Keep for backwards compat with session auth
   });
 
   await throwIfResNotOk(res);
@@ -31,7 +51,8 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(getApiUrl(queryKey.join("/") as string), {
-      credentials: "include",
+      headers: getHeaders(),
+      credentials: "include", // Keep for backwards compat
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
