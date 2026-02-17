@@ -12,6 +12,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Switch } from "@/components/ui/switch";
+import { removeToken } from "@/lib/tokenStorage";
 
 declare global {
   interface Window {
@@ -192,6 +193,24 @@ export default function SettingsPage() {
     razorpayOrderMutation.mutate(plan);
   };
 
+  const handleLogout = () => {
+    // Clear JWT token from localStorage (for Email/Phone auth)
+    removeToken();
+
+    // Clear all cached queries
+    queryClient.clear();
+
+    // Check if user logged in with Google OAuth (has authProvider field)
+    if (user?.authProvider === 'google') {
+      // For Google OAuth, call backend logout endpoint
+      // This will clear session and redirect via Google logout
+      window.location.href = '/api/logout';
+    } else {
+      // For Email/Phone JWT auth, just redirect to login
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <Layout>
       <div className="mb-4">
@@ -217,11 +236,11 @@ export default function SettingsPage() {
               <p className="text-slate-500 text-sm">{user?.email || user?.phone || 'User'}</p>
             </div>
           </div>
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             size="sm"
             className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-            onClick={() => window.location.href = '/api/logout'}
+            onClick={handleLogout}
             data-testid="button-logout"
           >
             <LogOut className="w-4 h-4 mr-1" />

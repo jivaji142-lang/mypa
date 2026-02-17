@@ -2,14 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertMedicine, type Medicine } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { getApiUrl } from "@/lib/config";
+import { apiRequest } from "@/lib/queryClient";
 
 export function useMedicines() {
   return useQuery({
     queryKey: [api.medicines.list.path],
     queryFn: async () => {
-      const res = await fetch(getApiUrl(api.medicines.list.path), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch medicines");
+      const res = await apiRequest("GET", api.medicines.list.path);
       return api.medicines.list.responses[200].parse(await res.json());
     },
   });
@@ -22,12 +21,7 @@ export function useCreateMedicine() {
   return useMutation({
     mutationFn: async (data: InsertMedicine) => {
       const validated = api.medicines.create.input.parse(data);
-      const res = await fetch(getApiUrl(api.medicines.create.path), {
-        method: api.medicines.create.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
-        credentials: "include",
-      });
+      const res = await apiRequest(api.medicines.create.method, api.medicines.create.path, validated);
 
       if (!res.ok) {
         if (res.status === 400) {
@@ -55,14 +49,9 @@ export function useUpdateMedicine() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: number } & Partial<InsertMedicine>) => {
       const validated = api.medicines.update.input.parse(updates);
-      const url = getApiUrl(buildUrl(api.medicines.update.path, { id }));
+      const url = buildUrl(api.medicines.update.path, { id });
 
-      const res = await fetch(url, {
-        method: api.medicines.update.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
-        credentials: "include",
-      });
+      const res = await apiRequest(api.medicines.update.method, url, validated);
 
       if (!res.ok) throw new Error("Failed to update medicine");
       return api.medicines.update.responses[200].parse(await res.json());
@@ -83,8 +72,8 @@ export function useDeleteMedicine() {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      const url = getApiUrl(buildUrl(api.medicines.delete.path, { id }));
-      const res = await fetch(url, { method: api.medicines.delete.method, credentials: "include" });
+      const url = buildUrl(api.medicines.delete.path, { id });
+      const res = await apiRequest(api.medicines.delete.method, url);
       if (!res.ok) throw new Error("Failed to delete medicine");
     },
     onSuccess: () => {

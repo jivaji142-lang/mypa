@@ -101,14 +101,20 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   endpoint: text("endpoint").notNull(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
+  // Device information for cross-device alarm synchronization
+  platform: text("platform").default("web"), // 'web', 'ios', 'android'
+  deviceType: text("device_type").default("desktop"), // 'mobile', 'tablet', 'desktop'
+  deviceName: text("device_name"), // Optional: "John's iPhone", "Work Laptop", etc.
+  supportsFullScreen: boolean("supports_full_screen").default(false), // true for mobile, false for desktop
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users);
-export const insertAlarmSchema = createInsertSchema(alarms).omit({ id: true });
-export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
-export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
-export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
+// userId is omitted because backend extracts it from JWT token (security)
+export const insertAlarmSchema = createInsertSchema(alarms).omit({ id: true, userId: true });
+export const insertMedicineSchema = createInsertSchema(medicines).omit({ id: true, userId: true });
+export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true, userId: true });
+export const insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, userId: true });
 
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

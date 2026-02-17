@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiRequest } from '@/lib/queryClient';
 import { getApiUrl } from '@/lib/config';
+import { getDeviceInfo } from '@/lib/deviceDetection';
 
 export function usePushNotifications() {
   const [isSupported, setIsSupported] = useState(false);
@@ -62,13 +63,22 @@ export function usePushNotifications() {
         applicationServerKey: urlBase64ToUint8Array(publicKey)
       });
 
-      // Send subscription to server
+      // Get device information for cross-device sync
+      const deviceInfo = getDeviceInfo();
+      console.log('[Push] Device info:', deviceInfo);
+
+      // Send subscription to server with device information
       await apiRequest('POST', '/api/push/subscribe', {
         endpoint: subscription.endpoint,
         keys: {
           p256dh: arrayBufferToBase64(subscription.getKey('p256dh')!),
           auth: arrayBufferToBase64(subscription.getKey('auth')!)
-        }
+        },
+        // Device information for multi-device alarm sync
+        platform: deviceInfo.platform,
+        deviceType: deviceInfo.deviceType,
+        supportsFullScreen: deviceInfo.supportsFullScreen,
+        deviceName: `${deviceInfo.platform === 'web' ? 'Browser' : deviceInfo.platform} - ${deviceInfo.deviceType}`
       });
 
       setIsSubscribed(true);

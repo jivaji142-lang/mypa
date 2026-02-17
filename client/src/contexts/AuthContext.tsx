@@ -124,6 +124,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setError(null);
     console.log('[Auth] User logged out');
+
+    // Redirect to login page after logout
+    window.location.href = '/login';
   }, []);
 
   const value: AuthContextType = {

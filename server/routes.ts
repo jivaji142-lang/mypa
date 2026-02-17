@@ -246,15 +246,15 @@ export async function registerRoutes(
     try {
       const validatedData = signupSchema.parse(req.body);
       const { email, password, name } = validatedData;
-      
+
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already registered" });
       }
-      
+
       const passwordHash = await bcrypt.hash(password, 12);
       const nameParts = (name || "").split(" ");
-      
+
       const user = await storage.createEmailUser({
         email,
         passwordHash,
@@ -262,12 +262,23 @@ export async function registerRoutes(
         lastName: nameParts.slice(1).join(" ") || "",
         authProvider: "email"
       });
-      
+
+      // Generate JWT token for mobile app compatibility
+      const { generateToken } = await import("./tokenAuth");
+      const token = generateToken(user.id, user.email);
+
+      // Also setup session for backwards compatibility
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed after signup" });
+          console.error("Session setup error:", err);
         }
-        res.json({ success: true, user: sanitizeUser(user) });
+      });
+
+      // Return token and user data
+      res.json({
+        success: true,
+        token,
+        user: sanitizeUser(user)
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -278,35 +289,9 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/auth/login", async (req, res) => {
-    try {
-      const validatedData = loginSchema.parse(req.body);
-      const { email, password } = validatedData;
-      
-      const user = await storage.getUserByEmail(email);
-      if (!user || !user.passwordHash) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      
-      const validPassword = await bcrypt.compare(password, user.passwordHash);
-      if (!validPassword) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Login failed" });
-        }
-        res.json({ success: true, user: sanitizeUser(user) });
-      });
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Login error:", err);
-      res.status(500).json({ message: "Login failed" });
-    }
-  });
+  // NOTE: /api/auth/token-login is already registered above (line 32)
+  // It uses handleTokenLogin from tokenAuth.ts
+  // No need for duplicate /api/auth/login endpoint
 
   // Phone OTP Authentication with Fast2SMS
   app.post("/api/auth/send-otp", async (req, res) => {
@@ -373,12 +358,12 @@ export async function registerRoutes(
     try {
       const validatedData = verifyOtpSchema.parse(req.body);
       const { phone, otp, name } = validatedData;
-      
+
       const validOtp = await storage.verifyOtp(phone, otp);
       if (!validOtp) {
         return res.status(401).json({ message: "Invalid or expired OTP" });
       }
-      
+
       // Find or create user by phone
       let user = await storage.getUserByPhone(phone);
       if (!user) {
@@ -390,12 +375,23 @@ export async function registerRoutes(
           authProvider: "phone"
         });
       }
-      
+
+      // Generate JWT token for mobile app compatibility
+      const { generateToken } = await import("./tokenAuth");
+      const token = generateToken(user.id, user.email || user.phone || user.id);
+
+      // Also setup session for backwards compatibility
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed" });
+          console.error("Session setup error:", err);
         }
-        res.json({ success: true, user: sanitizeUser(user) });
+      });
+
+      // Return token and user data
+      res.json({
+        success: true,
+        token,
+        user: sanitizeUser(user)
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
@@ -718,21 +714,26 @@ export async function registerRoutes(
 
   app.post("/api/push/subscribe", async (req, res) => {
     if (!isAuthenticatedAny(req)) return res.sendStatus(401);
-    
+
     try {
-      const { endpoint, keys } = req.body;
-      
+      const { endpoint, keys, platform, deviceType, supportsFullScreen, deviceName } = req.body;
+
       if (!endpoint || !keys?.p256dh || !keys?.auth) {
         return res.status(400).json({ message: "Invalid subscription data" });
       }
-      
+
       await savePushSubscription(
         getUserId(req),
         endpoint,
         keys.p256dh,
-        keys.auth
+        keys.auth,
+        platform,
+        deviceType,
+        supportsFullScreen,
+        deviceName
       );
-      
+
+      console.log(`[Push] Subscription saved - Device: ${deviceName || deviceType}, Platform: ${platform}, Full-screen: ${supportsFullScreen}`);
       res.json({ success: true, message: "Push subscription saved" });
     } catch (error: any) {
       console.error("Push subscribe error:", error);

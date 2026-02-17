@@ -3,14 +3,16 @@ import { Strategy as LocalStrategy } from "passport-local";
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 
 /**
- * Setup Email/Password authentication for non-Replit environments
+ * Setup Email/Password Passport strategy for non-Replit environments
  * (Vercel, local dev, etc.)
+ *
+ * NOTE: This ONLY sets up the passport strategy.
+ * Route registration happens in server/routes.ts to avoid conflicts.
  */
 export function setupLocalAuth(app: Express) {
-  console.log('[Auth] Setting up Email/Password authentication');
+  console.log('[Auth] Setting up Email/Password Passport strategy');
 
   // Local Strategy (email + password)
   passport.use(
@@ -60,91 +62,6 @@ export function setupLocalAuth(app: Express) {
     }
   });
 
-  // ═══════════════════════════════════════════════════════════════
-  // POST /api/auth/register - Create new account
-  // ═══════════════════════════════════════════════════════════════
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const { email, password, firstName, lastName } = req.body;
-
-      // Validation
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password required" });
-      }
-
-      if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters" });
-      }
-
-      // Check if user already exists
-      const existingUser = await authStorage.getUserByEmail(email.toLowerCase());
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-
-      // Hash password
-      const passwordHash = await bcrypt.hash(password, 10);
-
-      // Create user
-      const user = await authStorage.upsertUser({
-        id: crypto.randomUUID(),
-        email: email.toLowerCase(),
-        passwordHash,
-        firstName: firstName || "",
-        lastName: lastName || "",
-        profileImageUrl: "",
-      });
-
-      // Log in user automatically
-      req.login({ id: user.id }, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Registration successful but login failed" });
-        }
-
-        // Return user (without password)
-        const { passwordHash: _, ...safeUser } = user;
-        res.status(201).json(safeUser);
-      });
-    } catch (error: any) {
-      console.error("[Auth] Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
-
-  // ═══════════════════════════════════════════════════════════════
-  // POST /api/auth/login - Login with email/password
-  // ═══════════════════════════════════════════════════════════════
-  app.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) {
-        return res.status(500).json({ message: "Authentication failed" });
-      }
-
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
-      }
-
-      // Log in user (create session)
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          return res.status(500).json({ message: "Login failed" });
-        }
-
-        // Return success
-        res.json({ message: "Login successful" });
-      });
-    })(req, res, next);
-  });
-
-  // ═══════════════════════════════════════════════════════════════
-  // POST /api/auth/logout - Logout user
-  // ═══════════════════════════════════════════════════════════════
-  app.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.json({ message: "Logout successful" });
-    });
-  });
+  console.log('[Auth] Passport local strategy configured');
+  // NOTE: All route registration moved to server/routes.ts
 }

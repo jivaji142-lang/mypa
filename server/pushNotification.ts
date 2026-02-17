@@ -51,16 +51,27 @@ export async function sendPushNotification(
   userId: string,
   payload: PushPayload
 ): Promise<{ success: number; failed: number }> {
+  // Get all subscriptions for this user (all devices)
   const subscriptions = await db
     .select()
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.userId, userId));
 
+  if (subscriptions.length === 0) {
+    console.log(`[Push] No subscriptions found for user ${userId}`);
+    return { success: 0, failed: 0 };
+  }
+
+  console.log(`[Push] Sending ${payload.type} notification to ${subscriptions.length} device(s) for user ${userId}`);
+
   let success = 0;
   let failed = 0;
 
   for (const sub of subscriptions) {
+    const deviceInfo = `${sub.deviceName || sub.deviceType || 'unknown'} (${sub.platform || 'web'})`;
+
     try {
+      // Send notification to this device
       await webPush.sendNotification(
         {
           endpoint: sub.endpoint,
@@ -79,19 +90,20 @@ export async function sendPushNotification(
         }
       );
       success++;
-      console.log(`[Push] Notification sent to user ${userId}`);
+      console.log(`[Push] ✓ Sent to ${deviceInfo} - Full-screen: ${sub.supportsFullScreen ? 'YES' : 'NO'}`);
     } catch (error: any) {
       failed++;
-      console.error(`[Push] Failed to send notification:`, error.message);
-      
+      console.error(`[Push] ✗ Failed to send to ${deviceInfo}:`, error.message);
+
       // Remove invalid subscription
       if (error.statusCode === 410 || error.statusCode === 404) {
         await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
-        console.log(`[Push] Removed invalid subscription ${sub.id}`);
+        console.log(`[Push] Removed invalid subscription ${sub.id} (${deviceInfo})`);
       }
     }
   }
 
+  console.log(`[Push] Summary: ${success} sent, ${failed} failed`);
   return { success, failed };
 }
 
@@ -99,7 +111,11 @@ export async function savePushSubscription(
   userId: string,
   endpoint: string,
   p256dh: string,
-  auth: string
+  auth: string,
+  platform?: string,
+  deviceType?: string,
+  supportsFullScreen?: boolean,
+  deviceName?: string
 ): Promise<void> {
   // Check if subscription already exists
   const existing = await db
@@ -108,22 +124,34 @@ export async function savePushSubscription(
     .where(eq(pushSubscriptions.endpoint, endpoint));
 
   if (existing.length > 0) {
-    // Update existing
+    // Update existing subscription with new device info
     await db
       .update(pushSubscriptions)
-      .set({ userId, p256dh, auth })
+      .set({
+        userId,
+        p256dh,
+        auth,
+        platform: platform || 'web',
+        deviceType: deviceType || 'desktop',
+        supportsFullScreen: supportsFullScreen || false,
+        deviceName: deviceName || null
+      })
       .where(eq(pushSubscriptions.endpoint, endpoint));
+    console.log(`[Push] Updated subscription for user ${userId} - ${deviceName || deviceType}`);
   } else {
-    // Insert new
+    // Insert new subscription with device info
     await db.insert(pushSubscriptions).values({
       userId,
       endpoint,
       p256dh,
-      auth
+      auth,
+      platform: platform || 'web',
+      deviceType: deviceType || 'desktop',
+      supportsFullScreen: supportsFullScreen || false,
+      deviceName: deviceName || null
     });
+    console.log(`[Push] New subscription saved for user ${userId} - ${deviceName || deviceType}`);
   }
-  
-  console.log(`[Push] Subscription saved for user ${userId}`);
 }
 
 export async function removePushSubscription(endpoint: string): Promise<void> {

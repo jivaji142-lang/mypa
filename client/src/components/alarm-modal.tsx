@@ -88,9 +88,9 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // DO NOT send userId from client - backend extracts it from JWT token
     const data = {
       ...formData,
-      userId: "placeholder",
     };
 
     if (alarm) {

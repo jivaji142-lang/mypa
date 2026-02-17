@@ -2,14 +2,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl } from "@shared/routes";
 import { type InsertAlarm, type Alarm } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { getApiUrl } from "@/lib/config";
+import { apiRequest } from "@/lib/queryClient";
 
 export function useAlarms() {
   return useQuery({
     queryKey: [api.alarms.list.path],
     queryFn: async () => {
-      const res = await fetch(getApiUrl(api.alarms.list.path), { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch alarms");
+      const res = await apiRequest("GET", api.alarms.list.path);
       return api.alarms.list.responses[200].parse(await res.json());
     },
   });
@@ -22,12 +21,7 @@ export function useCreateAlarm() {
   return useMutation({
     mutationFn: async (data: InsertAlarm) => {
       const validated = api.alarms.create.input.parse(data);
-      const res = await fetch(getApiUrl(api.alarms.create.path), {
-        method: api.alarms.create.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
-        credentials: "include",
-      });
+      const res = await apiRequest(api.alarms.create.method, api.alarms.create.path, validated);
 
       if (!res.ok) {
         if (res.status === 400) {
@@ -55,14 +49,9 @@ export function useUpdateAlarm() {
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: number } & Partial<InsertAlarm>) => {
       const validated = api.alarms.update.input.parse(updates);
-      const url = getApiUrl(buildUrl(api.alarms.update.path, { id }));
+      const url = buildUrl(api.alarms.update.path, { id });
 
-      const res = await fetch(url, {
-        method: api.alarms.update.method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(validated),
-        credentials: "include",
-      });
+      const res = await apiRequest(api.alarms.update.method, url, validated);
 
       if (!res.ok) throw new Error("Failed to update alarm");
       return api.alarms.update.responses[200].parse(await res.json());
@@ -82,8 +71,8 @@ export function useDeleteAlarm() {
 
   return useMutation({
     mutationFn: async (id: number) => {
-      const url = getApiUrl(buildUrl(api.alarms.delete.path, { id }));
-      const res = await fetch(url, { method: api.alarms.delete.method, credentials: "include" });
+      const url = buildUrl(api.alarms.delete.path, { id });
+      const res = await apiRequest(api.alarms.delete.method, url);
       if (!res.ok) throw new Error("Failed to delete alarm");
     },
     onSuccess: () => {

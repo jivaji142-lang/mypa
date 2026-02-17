@@ -45,8 +45,8 @@ export default function Login() {
       // Invalidate user query to refetch with new token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-      // Reload to apply authentication
-      window.location.reload();
+      // Redirect to home page after successful login
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -80,9 +80,18 @@ export default function Login() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Save JWT token to localStorage
+      if (data.token) {
+        saveToken(data.token);
+        console.log('[Login] Phone OTP - Token saved to localStorage');
+      }
+
+      // Invalidate user query to refetch with new token
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      window.location.reload();
+
+      // Redirect to home page after successful login
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
