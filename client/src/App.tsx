@@ -6,6 +6,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { useNativeSync } from "@/hooks/useNativeSync";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
+import { saveToken } from "@/lib/tokenStorage";
 
 import Home from "@/pages/home";
 import Routine from "@/pages/routine";
@@ -20,6 +22,20 @@ import { GlobalAlarmHandler } from "@/components/global-alarm-handler";
 function Router() {
   const { user, isLoading } = useAuth();
   useNativeSync();
+
+  // Handle token from Google OAuth callback URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (token) {
+      saveToken(token);
+      console.log('[App] Google OAuth token saved from URL');
+      // Remove token from URL
+      window.history.replaceState({}, '', '/');
+      // Force re-fetch user
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    }
+  }, []);
 
   if (isLoading) {
     return (

@@ -101,9 +101,71 @@ export async function setupAuth(app: Express) {
 
   // Use Email/Password auth if not running on Replit
   if (!process.env.REPL_ID) {
-    console.log('[Auth] Running outside Replit - using Email/Password authentication');
+    console.log('[Auth] Running outside Replit — setting up Local + Google auth');
     const { setupLocalAuth } = await import('./localAuth');
     setupLocalAuth(app);
+
+    // Setup Google OAuth (works on Vercel, local dev, and mobile)
+    const { setupGoogleAuth } = await import('./googleAuth');
+    const googleEnabled = setupGoogleAuth(app);
+
+    if (googleEnabled) {
+      // Serialize/deserialize for Google OAuth sessions
+      passport.serializeUser((user: any, cb) => cb(null, user.id));
+      passport.deserializeUser(async (id: string, cb) => {
+        try {
+          const user = await authStorage.getUser(id);
+          cb(null, user ? { id: user.id } : null);
+        } catch (error) {
+          cb(error);
+        }
+      });
+
+      // Google OAuth routes
+      app.get("/api/login", (req, res, next) => {
+        passport.authenticate("google", {
+          scope: ["openid", "email", "profile"],
+          prompt: "select_account",
+        })(req, res, next);
+      });
+
+      app.get("/api/auth/google/callback", (req, res, next) => {
+        passport.authenticate("google", {
+          failureRedirect: "/login?error=google_auth_failed",
+        })(req, res, async (err?: any) => {
+          if (err) {
+            console.error("[Google Auth] Callback error:", err);
+            return res.redirect("/login?error=google_auth_failed");
+          }
+
+          // Generate JWT token for the authenticated user
+          const userId = (req.user as any)?.id;
+          if (userId) {
+            try {
+              const { generateToken } = await import('../../tokenAuth');
+              const user = await authStorage.getUser(userId);
+              if (user) {
+                const token = generateToken(user.id, user.email || user.id);
+                // Redirect with token as query param (frontend will save it)
+                return res.redirect(`/?token=${token}`);
+              }
+            } catch (error) {
+              console.error("[Google Auth] Token generation error:", error);
+            }
+          }
+          return res.redirect("/");
+        });
+      });
+
+      app.get("/api/logout", (req, res) => {
+        req.logout(() => {
+          res.redirect("/login");
+        });
+      });
+
+      console.log('[Auth] Google OAuth routes registered: /api/login, /api/auth/google/callback, /api/logout');
+    }
+
     return;
   }
 

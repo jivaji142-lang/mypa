@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Bell, Mail, Phone, Loader2, Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -15,10 +15,34 @@ export default function Login() {
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isSignup, setIsSignup] = useState(false);
-  
+
   const [emailForm, setEmailForm] = useState({ email: "", password: "", name: "" });
   const [phoneForm, setPhoneForm] = useState({ phone: "", otp: "", name: "" });
   const [otpSent, setOtpSent] = useState(false);
+
+  // Handle Google OAuth redirect with token
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const error = urlParams.get('error');
+
+    if (error === 'google_auth_failed') {
+      toast({
+        title: "Authentication Failed",
+        description: "Google login failed. Please try again.",
+        variant: "destructive"
+      });
+      // Clean URL
+      window.history.replaceState({}, '', '/login');
+    } else if (token) {
+      saveToken(token);
+      console.log('[Login] Google OAuth token saved');
+      // Invalidate user query to refetch with new token
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      // Clean URL and redirect to home
+      window.location.href = "/";
+    }
+  }, [toast]);
 
   const handleGoogleLogin = () => {
     window.location.href = "/api/login";
