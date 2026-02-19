@@ -130,13 +130,22 @@ var pushSubscriptions = pgTable("push_subscriptions", {
   endpoint: text("endpoint").notNull(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
+  // Device information for cross-device alarm synchronization
+  platform: text("platform").default("web"),
+  // 'web', 'ios', 'android'
+  deviceType: text("device_type").default("desktop"),
+  // 'mobile', 'tablet', 'desktop'
+  deviceName: text("device_name"),
+  // Optional: "John's iPhone", "Work Laptop", etc.
+  supportsFullScreen: boolean("supports_full_screen").default(false),
+  // true for mobile, false for desktop
   createdAt: timestamp("created_at").defaultNow()
 });
 var insertUserSchema = createInsertSchema(users);
-var insertAlarmSchema = createInsertSchema(alarms).omit({ id: true });
-var insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
-var insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
-var insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
+var insertAlarmSchema = createInsertSchema(alarms).omit({ id: true, userId: true });
+var insertMedicineSchema = createInsertSchema(medicines).omit({ id: true, userId: true });
+var insertMeetingSchema = createInsertSchema(meetings).omit({ id: true, userId: true });
+var insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, userId: true });
 
 // server/db.ts
 var { Pool } = pg;
@@ -198,9 +207,15 @@ webPush.setVapidDetails(
 );
 async function sendPushNotification(userId, payload) {
   const subscriptions = await db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+  if (subscriptions.length === 0) {
+    console.log(`[Push] No subscriptions found for user ${userId}`);
+    return { success: 0, failed: 0 };
+  }
+  console.log(`[Push] Sending ${payload.type} notification to ${subscriptions.length} device(s) for user ${userId}`);
   let success = 0;
   let failed = 0;
   for (const sub of subscriptions) {
+    const deviceInfo = `${sub.deviceName || sub.deviceType || "unknown"} (${sub.platform || "web"})`;
     try {
       await webPush.sendNotification(
         {
@@ -220,16 +235,17 @@ async function sendPushNotification(userId, payload) {
         }
       );
       success++;
-      console.log(`[Push] Notification sent to user ${userId}`);
+      console.log(`[Push] \u2713 Sent to ${deviceInfo} - Full-screen: ${sub.supportsFullScreen ? "YES" : "NO"}`);
     } catch (error) {
       failed++;
-      console.error(`[Push] Failed to send notification:`, error.message);
+      console.error(`[Push] \u2717 Failed to send to ${deviceInfo}:`, error.message);
       if (error.statusCode === 410 || error.statusCode === 404) {
         await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, sub.id));
-        console.log(`[Push] Removed invalid subscription ${sub.id}`);
+        console.log(`[Push] Removed invalid subscription ${sub.id} (${deviceInfo})`);
       }
     }
   }
+  console.log(`[Push] Summary: ${success} sent, ${failed} failed`);
   return { success, failed };
 }
 

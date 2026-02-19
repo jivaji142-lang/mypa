@@ -134,13 +134,22 @@ var init_schema = __esm({
       endpoint: text("endpoint").notNull(),
       p256dh: text("p256dh").notNull(),
       auth: text("auth").notNull(),
+      // Device information for cross-device alarm synchronization
+      platform: text("platform").default("web"),
+      // 'web', 'ios', 'android'
+      deviceType: text("device_type").default("desktop"),
+      // 'mobile', 'tablet', 'desktop'
+      deviceName: text("device_name"),
+      // Optional: "John's iPhone", "Work Laptop", etc.
+      supportsFullScreen: boolean("supports_full_screen").default(false),
+      // true for mobile, false for desktop
       createdAt: timestamp("created_at").defaultNow()
     });
     insertUserSchema = createInsertSchema(users);
-    insertAlarmSchema = createInsertSchema(alarms).omit({ id: true });
-    insertMedicineSchema = createInsertSchema(medicines).omit({ id: true });
-    insertMeetingSchema = createInsertSchema(meetings).omit({ id: true });
-    insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true });
+    insertAlarmSchema = createInsertSchema(alarms).omit({ id: true, userId: true });
+    insertMedicineSchema = createInsertSchema(medicines).omit({ id: true, userId: true });
+    insertMeetingSchema = createInsertSchema(meetings).omit({ id: true, userId: true });
+    insertPushSubscriptionSchema = createInsertSchema(pushSubscriptions).omit({ id: true, userId: true });
   }
 });
 
@@ -246,9 +255,8 @@ __export(localAuth_exports, {
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import bcrypt from "bcryptjs";
-import crypto from "crypto";
 function setupLocalAuth(app2) {
-  console.log("[Auth] Setting up Email/Password authentication");
+  console.log("[Auth] Setting up Email/Password Passport strategy");
   passport.use(
     new LocalStrategy(
       {
@@ -284,69 +292,201 @@ function setupLocalAuth(app2) {
       cb(error);
     }
   });
-  app2.post("/api/auth/register", async (req, res) => {
-    try {
-      const { email, password, firstName, lastName } = req.body;
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password required" });
-      }
-      if (password.length < 6) {
-        return res.status(400).json({ message: "Password must be at least 6 characters" });
-      }
-      const existingUser = await authStorage.getUserByEmail(email.toLowerCase());
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-      const passwordHash = await bcrypt.hash(password, 10);
-      const user = await authStorage.upsertUser({
-        id: crypto.randomUUID(),
-        email: email.toLowerCase(),
-        passwordHash,
-        firstName: firstName || "",
-        lastName: lastName || "",
-        profileImageUrl: ""
-      });
-      req.login({ id: user.id }, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Registration successful but login failed" });
-        }
-        const { passwordHash: _, ...safeUser } = user;
-        res.status(201).json(safeUser);
-      });
-    } catch (error) {
-      console.error("[Auth] Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
-  app2.post("/api/auth/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
-      if (err) {
-        return res.status(500).json({ message: "Authentication failed" });
-      }
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
-      }
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          return res.status(500).json({ message: "Login failed" });
-        }
-        res.json({ message: "Login successful" });
-      });
-    })(req, res, next);
-  });
-  app2.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.json({ message: "Logout successful" });
-    });
-  });
+  console.log("[Auth] Passport local strategy configured");
 }
 var init_localAuth = __esm({
   "server/replit_integrations/auth/localAuth.ts"() {
     "use strict";
     init_storage();
+  }
+});
+
+// server/replit_integrations/auth/googleAuth.ts
+var googleAuth_exports = {};
+__export(googleAuth_exports, {
+  setupGoogleAuth: () => setupGoogleAuth
+});
+import passport2 from "passport";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { eq as eq3 } from "drizzle-orm";
+function setupGoogleAuth(app2) {
+  const clientID = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const callbackURL = process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback";
+  if (!clientID || !clientSecret) {
+    console.log("[Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set \u2014 Google login disabled");
+    return false;
+  }
+  passport2.use(
+    new GoogleStrategy(
+      {
+        clientID,
+        clientSecret,
+        callbackURL,
+        scope: ["openid", "email", "profile"]
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const email = profile.emails?.[0]?.value;
+          if (!email) {
+            return done(new Error("No email found in Google profile"), void 0);
+          }
+          let user = await authStorage.getUserByEmail(email);
+          if (user) {
+            const [updatedUser] = await db.update(users).set({
+              firstName: profile.name?.givenName || user.firstName,
+              lastName: profile.name?.familyName || user.lastName,
+              profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
+              authProvider: "google",
+              updatedAt: /* @__PURE__ */ new Date()
+            }).where(eq3(users.id, user.id)).returning();
+            return done(null, { id: updatedUser.id });
+          }
+          const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3);
+          const [newUser] = await db.insert(users).values({
+            email,
+            firstName: profile.name?.givenName || email.split("@")[0],
+            lastName: profile.name?.familyName || "",
+            profileImageUrl: profile.photos?.[0]?.value || null,
+            authProvider: "google",
+            subscriptionStatus: "trial",
+            trialEndsAt
+          }).returning();
+          console.log(`[Google Auth] New user created: ${email}`);
+          return done(null, { id: newUser.id });
+        } catch (error) {
+          console.error("[Google Auth] Error:", error);
+          return done(error, void 0);
+        }
+      }
+    )
+  );
+  console.log("[Google Auth] Strategy registered successfully");
+  return true;
+}
+var init_googleAuth = __esm({
+  "server/replit_integrations/auth/googleAuth.ts"() {
+    "use strict";
+    init_storage();
+    init_db();
+    init_schema();
+  }
+});
+
+// server/tokenAuth.ts
+var tokenAuth_exports = {};
+__export(tokenAuth_exports, {
+  generateToken: () => generateToken,
+  getUserId: () => getUserId,
+  handleGetTokenUser: () => handleGetTokenUser,
+  handleTokenLogin: () => handleTokenLogin,
+  isAuthenticatedAny: () => isAuthenticatedAny,
+  requireToken: () => requireToken,
+  verifyToken: () => verifyToken
+});
+import jwt from "jsonwebtoken";
+import bcrypt2 from "bcryptjs";
+function generateToken(userId, email) {
+  return jwt.sign(
+    { userId, email },
+    JWT_SECRET,
+    { expiresIn: TOKEN_EXPIRY }
+  );
+}
+function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+}
+async function handleTokenLogin(req, res) {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required" });
+  }
+  try {
+    const user = await authStorage.getUserByEmail(email.toLowerCase());
+    if (!user || !user.passwordHash) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    const isValid = await bcrypt2.compare(password, user.passwordHash);
+    if (!isValid) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+    const token = generateToken(user.id, user.email);
+    return res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName
+      }
+    });
+  } catch (error) {
+    console.error("[Token Auth] Login error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+async function handleGetTokenUser(req, res) {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  try {
+    const user = await authStorage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    return res.json(user);
+  } catch (error) {
+    console.error("[Token Auth] Get user error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+function isAuthenticatedAny(req) {
+  if (req.isAuthenticated && req.isAuthenticated()) {
+    return true;
+  }
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    if (payload) {
+      req.user = { id: payload.userId };
+      return true;
+    }
+  }
+  return false;
+}
+function getUserId(req) {
+  if (!isAuthenticatedAny(req)) {
+    return null;
+  }
+  return req.user?.id || null;
+}
+var JWT_SECRET, TOKEN_EXPIRY, requireToken;
+var init_tokenAuth = __esm({
+  "server/tokenAuth.ts"() {
+    "use strict";
+    init_storage();
+    JWT_SECRET = process.env.SESSION_SECRET || "dev-secret-change-me";
+    TOKEN_EXPIRY = "7d";
+    requireToken = async (req, res, next) => {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Unauthorized: No token provided" });
+      }
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      if (!payload) {
+        return res.status(401).json({ message: "Unauthorized: Invalid token" });
+      }
+      req.user = { id: payload.userId };
+      next();
+    };
   }
 });
 
@@ -619,7 +759,7 @@ init_storage();
 init_db();
 import * as client from "openid-client";
 import { Strategy } from "openid-client/passport";
-import passport2 from "passport";
+import passport3 from "passport";
 import session from "express-session";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
@@ -705,12 +845,61 @@ async function upsertUser(claims) {
 async function setupAuth(app2) {
   app2.set("trust proxy", 1);
   app2.use(getSession());
-  app2.use(passport2.initialize());
-  app2.use(passport2.session());
+  app2.use(passport3.initialize());
+  app2.use(passport3.session());
   if (!process.env.REPL_ID) {
-    console.log("[Auth] Running outside Replit - using Email/Password authentication");
+    console.log("[Auth] Running outside Replit \u2014 setting up Local + Google auth");
     const { setupLocalAuth: setupLocalAuth2 } = await Promise.resolve().then(() => (init_localAuth(), localAuth_exports));
     setupLocalAuth2(app2);
+    const { setupGoogleAuth: setupGoogleAuth2 } = await Promise.resolve().then(() => (init_googleAuth(), googleAuth_exports));
+    const googleEnabled = setupGoogleAuth2(app2);
+    if (googleEnabled) {
+      passport3.serializeUser((user, cb) => cb(null, user.id));
+      passport3.deserializeUser(async (id, cb) => {
+        try {
+          const user = await authStorage.getUser(id);
+          cb(null, user ? { id: user.id } : null);
+        } catch (error) {
+          cb(error);
+        }
+      });
+      app2.get("/api/login", (req, res, next) => {
+        passport3.authenticate("google", {
+          scope: ["openid", "email", "profile"],
+          prompt: "select_account"
+        })(req, res, next);
+      });
+      app2.get("/api/auth/google/callback", (req, res, next) => {
+        passport3.authenticate("google", {
+          failureRedirect: "/login?error=google_auth_failed"
+        })(req, res, async (err) => {
+          if (err) {
+            console.error("[Google Auth] Callback error:", err);
+            return res.redirect("/login?error=google_auth_failed");
+          }
+          const userId = req.user?.id;
+          if (userId) {
+            try {
+              const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
+              const user = await authStorage.getUser(userId);
+              if (user) {
+                const token = generateToken2(user.id, user.email || user.id);
+                return res.redirect(`/?token=${token}`);
+              }
+            } catch (error) {
+              console.error("[Google Auth] Token generation error:", error);
+            }
+          }
+          return res.redirect("/");
+        });
+      });
+      app2.get("/api/logout", (req, res) => {
+        req.logout(() => {
+          res.redirect("/login");
+        });
+      });
+      console.log("[Auth] Google OAuth routes registered: /api/login, /api/auth/google/callback, /api/logout");
+    }
     return;
   }
   const config = await getOidcConfig();
@@ -734,22 +923,22 @@ async function setupAuth(app2) {
         },
         verify
       );
-      passport2.use(strategy);
+      passport3.use(strategy);
       registeredStrategies.add(strategyName);
     }
   };
-  passport2.serializeUser((user, cb) => cb(null, user));
-  passport2.deserializeUser((user, cb) => cb(null, user));
+  passport3.serializeUser((user, cb) => cb(null, user));
+  passport3.deserializeUser((user, cb) => cb(null, user));
   app2.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
-    passport2.authenticate(`replitauth:${req.hostname}`, {
+    passport3.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"]
     })(req, res, next);
   });
   app2.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
-    passport2.authenticate(`replitauth:${req.hostname}`, {
+    passport3.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login"
     })(req, res, next);
@@ -771,109 +960,7 @@ init_storage();
 
 // server/replit_integrations/auth/routes.ts
 init_storage();
-
-// server/tokenAuth.ts
-init_storage();
-import jwt from "jsonwebtoken";
-import bcrypt2 from "bcryptjs";
-var JWT_SECRET = process.env.SESSION_SECRET || "dev-secret-change-me";
-var TOKEN_EXPIRY = "7d";
-function generateToken(userId, email) {
-  return jwt.sign(
-    { userId, email },
-    JWT_SECRET,
-    { expiresIn: TOKEN_EXPIRY }
-  );
-}
-function verifyToken(token) {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (error) {
-    return null;
-  }
-}
-var requireToken = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ message: "Unauthorized: No token provided" });
-  }
-  const token = authHeader.substring(7);
-  const payload = verifyToken(token);
-  if (!payload) {
-    return res.status(401).json({ message: "Unauthorized: Invalid token" });
-  }
-  req.user = { id: payload.userId };
-  next();
-};
-async function handleTokenLogin(req, res) {
-  const { email, password } = req.body;
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password required" });
-  }
-  try {
-    const user = await authStorage.getUserByEmail(email.toLowerCase());
-    if (!user || !user.passwordHash) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-    const isValid = await bcrypt2.compare(password, user.passwordHash);
-    if (!isValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
-    }
-    const token = generateToken(user.id, user.email);
-    return res.json({
-      message: "Login successful",
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName
-      }
-    });
-  } catch (error) {
-    console.error("[Token Auth] Login error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-}
-async function handleGetTokenUser(req, res) {
-  const userId = req.user?.id;
-  if (!userId) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-  try {
-    const user = await authStorage.getUser(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    return res.json(user);
-  } catch (error) {
-    console.error("[Token Auth] Get user error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-}
-function isAuthenticatedAny(req) {
-  if (req.isAuthenticated && req.isAuthenticated()) {
-    return true;
-  }
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    if (payload) {
-      req.user = { id: payload.userId };
-      return true;
-    }
-  }
-  return false;
-}
-function getUserId(req) {
-  if (!isAuthenticatedAny(req)) {
-    return null;
-  }
-  return req.user?.id || null;
-}
-
-// server/replit_integrations/auth/routes.ts
+init_tokenAuth();
 function sanitizeUser(user) {
   if (!user) return void 0;
   const { passwordHash, ...safeUser } = user;
@@ -964,6 +1051,7 @@ async function seed() {
 }
 
 // server/routes.ts
+init_tokenAuth();
 import bcrypt3 from "bcryptjs";
 
 // server/stripeClient.ts
@@ -1019,13 +1107,13 @@ async function getStripePublishableKey() {
 init_db();
 import { sql as sql2 } from "drizzle-orm";
 import Razorpay from "razorpay";
-import crypto2 from "crypto";
+import crypto from "crypto";
 
 // server/pushNotification.ts
 init_db();
 init_schema();
 import webPush from "web-push";
-import { eq as eq3 } from "drizzle-orm";
+import { eq as eq4 } from "drizzle-orm";
 var vapidKeys = {
   publicKey: process.env.VAPID_PUBLIC_KEY || "",
   privateKey: process.env.VAPID_PRIVATE_KEY || ""
@@ -1046,10 +1134,16 @@ function getVapidPublicKey() {
   return vapidKeys.publicKey;
 }
 async function sendPushNotification(userId, payload) {
-  const subscriptions = await db.select().from(pushSubscriptions).where(eq3(pushSubscriptions.userId, userId));
+  const subscriptions = await db.select().from(pushSubscriptions).where(eq4(pushSubscriptions.userId, userId));
+  if (subscriptions.length === 0) {
+    console.log(`[Push] No subscriptions found for user ${userId}`);
+    return { success: 0, failed: 0 };
+  }
+  console.log(`[Push] Sending ${payload.type} notification to ${subscriptions.length} device(s) for user ${userId}`);
   let success = 0;
   let failed = 0;
   for (const sub of subscriptions) {
+    const deviceInfo = `${sub.deviceName || sub.deviceType || "unknown"} (${sub.platform || "web"})`;
     try {
       await webPush.sendNotification(
         {
@@ -1069,41 +1163,55 @@ async function sendPushNotification(userId, payload) {
         }
       );
       success++;
-      console.log(`[Push] Notification sent to user ${userId}`);
+      console.log(`[Push] \u2713 Sent to ${deviceInfo} - Full-screen: ${sub.supportsFullScreen ? "YES" : "NO"}`);
     } catch (error) {
       failed++;
-      console.error(`[Push] Failed to send notification:`, error.message);
+      console.error(`[Push] \u2717 Failed to send to ${deviceInfo}:`, error.message);
       if (error.statusCode === 410 || error.statusCode === 404) {
-        await db.delete(pushSubscriptions).where(eq3(pushSubscriptions.id, sub.id));
-        console.log(`[Push] Removed invalid subscription ${sub.id}`);
+        await db.delete(pushSubscriptions).where(eq4(pushSubscriptions.id, sub.id));
+        console.log(`[Push] Removed invalid subscription ${sub.id} (${deviceInfo})`);
       }
     }
   }
+  console.log(`[Push] Summary: ${success} sent, ${failed} failed`);
   return { success, failed };
 }
-async function savePushSubscription(userId, endpoint, p256dh, auth) {
-  const existing = await db.select().from(pushSubscriptions).where(eq3(pushSubscriptions.endpoint, endpoint));
+async function savePushSubscription(userId, endpoint, p256dh, auth, platform, deviceType, supportsFullScreen, deviceName) {
+  const existing = await db.select().from(pushSubscriptions).where(eq4(pushSubscriptions.endpoint, endpoint));
   if (existing.length > 0) {
-    await db.update(pushSubscriptions).set({ userId, p256dh, auth }).where(eq3(pushSubscriptions.endpoint, endpoint));
+    await db.update(pushSubscriptions).set({
+      userId,
+      p256dh,
+      auth,
+      platform: platform || "web",
+      deviceType: deviceType || "desktop",
+      supportsFullScreen: supportsFullScreen || false,
+      deviceName: deviceName || null
+    }).where(eq4(pushSubscriptions.endpoint, endpoint));
+    console.log(`[Push] Updated subscription for user ${userId} - ${deviceName || deviceType}`);
   } else {
     await db.insert(pushSubscriptions).values({
       userId,
       endpoint,
       p256dh,
-      auth
+      auth,
+      platform: platform || "web",
+      deviceType: deviceType || "desktop",
+      supportsFullScreen: supportsFullScreen || false,
+      deviceName: deviceName || null
     });
+    console.log(`[Push] New subscription saved for user ${userId} - ${deviceName || deviceType}`);
   }
-  console.log(`[Push] Subscription saved for user ${userId}`);
 }
 async function removePushSubscription(endpoint) {
-  await db.delete(pushSubscriptions).where(eq3(pushSubscriptions.endpoint, endpoint));
+  await db.delete(pushSubscriptions).where(eq4(pushSubscriptions.endpoint, endpoint));
   console.log(`[Push] Subscription removed`);
 }
 
 // server/alarmScheduler.ts
 init_db();
 init_schema();
-import { eq as eq4 } from "drizzle-orm";
+import { eq as eq5 } from "drizzle-orm";
 var schedulerInterval = null;
 var lastCheckedMinute = "";
 function getCurrentTimeIST() {
@@ -1154,9 +1262,9 @@ async function checkAndSendAlarms() {
   console.log(`[Scheduler] Checking at ${time} on ${day} (${date})`);
   try {
     const [activeAlarms, activeMedicines, activeMeetings] = await Promise.all([
-      db.select().from(alarms).where(eq4(alarms.isActive, true)),
-      db.select().from(medicines).where(eq4(medicines.isActive, true)),
-      db.select().from(meetings).where(eq4(meetings.enabled, true))
+      db.select().from(alarms).where(eq5(alarms.isActive, true)),
+      db.select().from(medicines).where(eq5(medicines.isActive, true)),
+      db.select().from(meetings).where(eq5(meetings.enabled, true))
     ]);
     const pushPromises = [];
     for (const alarm of activeAlarms) {
@@ -1493,11 +1601,17 @@ async function registerRoutes(httpServer2, app2) {
         lastName: nameParts.slice(1).join(" ") || "",
         authProvider: "email"
       });
+      const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
+      const token = generateToken2(user.id, user.email);
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed after signup" });
+          console.error("Session setup error:", err);
         }
-        res.json({ success: true, user: sanitizeUser2(user) });
+      });
+      res.json({
+        success: true,
+        token,
+        user: sanitizeUser2(user)
       });
     } catch (err) {
       if (err instanceof z2.ZodError) {
@@ -1505,32 +1619,6 @@ async function registerRoutes(httpServer2, app2) {
       }
       console.error("Signup error:", err);
       res.status(500).json({ message: "Signup failed" });
-    }
-  });
-  app2.post("/api/auth/login", async (req, res) => {
-    try {
-      const validatedData = loginSchema.parse(req.body);
-      const { email, password } = validatedData;
-      const user = await storage.getUserByEmail(email);
-      if (!user || !user.passwordHash) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      const validPassword = await bcrypt3.compare(password, user.passwordHash);
-      if (!validPassword) {
-        return res.status(401).json({ message: "Invalid email or password" });
-      }
-      req.login(user, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Login failed" });
-        }
-        res.json({ success: true, user: sanitizeUser2(user) });
-      });
-    } catch (err) {
-      if (err instanceof z2.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Login error:", err);
-      res.status(500).json({ message: "Login failed" });
     }
   });
   app2.post("/api/auth/send-otp", async (req, res) => {
@@ -1593,11 +1681,17 @@ async function registerRoutes(httpServer2, app2) {
           authProvider: "phone"
         });
       }
+      const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
+      const token = generateToken2(user.id, user.email || user.phone || user.id);
       req.login(user, (err) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed" });
+          console.error("Session setup error:", err);
         }
-        res.json({ success: true, user: sanitizeUser2(user) });
+      });
+      res.json({
+        success: true,
+        token,
+        user: sanitizeUser2(user)
       });
     } catch (err) {
       if (err instanceof z2.ZodError) {
@@ -1737,7 +1831,7 @@ async function registerRoutes(httpServer2, app2) {
       const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
       if (webhookSecret && webhookSignature) {
         const body = JSON.stringify(req.body);
-        const expectedSignature = crypto2.createHmac("sha256", webhookSecret).update(body).digest("hex");
+        const expectedSignature = crypto.createHmac("sha256", webhookSecret).update(body).digest("hex");
         if (expectedSignature !== webhookSignature) {
           console.log("Razorpay webhook signature mismatch");
           return res.status(400).json({ message: "Invalid signature" });
@@ -1814,7 +1908,7 @@ async function registerRoutes(httpServer2, app2) {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       const userId = getUserId(req);
       const body = razorpay_order_id + "|" + razorpay_payment_id;
-      const expectedSignature = crypto2.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
+      const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
       if (expectedSignature !== razorpay_signature) {
         return res.status(400).json({ message: "Invalid payment signature" });
       }
@@ -1856,7 +1950,7 @@ async function registerRoutes(httpServer2, app2) {
   app2.post("/api/push/subscribe", async (req, res) => {
     if (!isAuthenticatedAny(req)) return res.sendStatus(401);
     try {
-      const { endpoint, keys } = req.body;
+      const { endpoint, keys, platform, deviceType, supportsFullScreen, deviceName } = req.body;
       if (!endpoint || !keys?.p256dh || !keys?.auth) {
         return res.status(400).json({ message: "Invalid subscription data" });
       }
@@ -1864,8 +1958,13 @@ async function registerRoutes(httpServer2, app2) {
         getUserId(req),
         endpoint,
         keys.p256dh,
-        keys.auth
+        keys.auth,
+        platform,
+        deviceType,
+        supportsFullScreen,
+        deviceName
       );
+      console.log(`[Push] Subscription saved - Device: ${deviceName || deviceType}, Platform: ${platform}, Full-screen: ${supportsFullScreen}`);
       res.json({ success: true, message: "Push subscription saved" });
     } catch (error) {
       console.error("Push subscribe error:", error);
