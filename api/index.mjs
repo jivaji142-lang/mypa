@@ -1621,18 +1621,19 @@ async function registerRoutes(httpServer2, app2) {
       res.status(500).json({ message: "Signup failed" });
     }
   });
+  const normalizePhone = (phone) => phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\s/g, "").replace(/-/g, "");
   app2.post("/api/auth/send-otp", async (req, res) => {
     try {
       const validatedData = phoneSchema.parse(req.body);
-      let { phone } = validatedData;
-      phone = phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\s/g, "");
-      if (phone.length !== 10) {
+      const phone = normalizePhone(validatedData.phone);
+      if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
         return res.status(400).json({ message: "Please enter valid 10-digit mobile number" });
       }
       const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1e3);
       await storage.createOtp({ phone, code: otp, expiresAt });
       const fast2smsKey = process.env.FAST2SMS_API_KEY;
+      let smsSent = false;
       if (fast2smsKey) {
         try {
           const message = `Your MyPA verification code is: ${otp}. Valid for 10 minutes.`;
@@ -1641,20 +1642,27 @@ async function registerRoutes(httpServer2, app2) {
           const response = await fetch(apiUrl);
           const result = await response.json();
           console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
-          if (!result.return) {
-            console.error("[Fast2SMS] Error - SMS not sent:", result.message || result);
-            console.log(`[FALLBACK] OTP for ${phone}: ${otp}`);
-          } else {
+          if (result.return === true) {
+            smsSent = true;
             console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
+          } else {
+            console.error("[Fast2SMS] Error:", result.message || result);
           }
         } catch (smsError) {
           console.error("[Fast2SMS] Exception:", smsError);
-          console.log(`[FALLBACK] OTP for ${phone}: ${otp}`);
         }
-      } else {
-        console.log(`[DEV] OTP for ${phone}: ${otp} (Fast2SMS not configured)`);
       }
-      res.json({ success: true, message: "OTP sent successfully" });
+      if (!smsSent) {
+        console.log(`[OTP] ${phone}: ${otp} (SMS not sent \u2014 FAST2SMS_API_KEY not configured)`);
+        return res.json({
+          success: true,
+          message: "OTP sent successfully",
+          // Visible only when SMS not configured — remove this once Fast2SMS is set up
+          dev_otp: otp,
+          dev_note: "SMS provider not configured. Set FAST2SMS_API_KEY in Vercel to send real SMS."
+        });
+      }
+      res.json({ success: true, message: "OTP sent to your mobile number" });
     } catch (err) {
       if (err instanceof z2.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -1666,7 +1674,8 @@ async function registerRoutes(httpServer2, app2) {
   app2.post("/api/auth/verify-otp", async (req, res) => {
     try {
       const validatedData = verifyOtpSchema.parse(req.body);
-      const { phone, otp, name } = validatedData;
+      const phone = normalizePhone(validatedData.phone);
+      const { otp, name } = validatedData;
       const validOtp = await storage.verifyOtp(phone, otp);
       if (!validOtp) {
         return res.status(401).json({ message: "Invalid or expired OTP" });

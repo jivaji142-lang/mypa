@@ -86,9 +86,19 @@ export default function Login() {
       }
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       setOtpSent(true);
-      toast({ title: "OTP Sent", description: "Check your phone for the verification code" });
+      if (data.dev_otp) {
+        // SMS not configured — auto-fill OTP and show it to user
+        setPhoneForm(prev => ({ ...prev, otp: data.dev_otp }));
+        toast({
+          title: "OTP (Test Mode)",
+          description: `Your OTP is: ${data.dev_otp}`,
+          duration: 30000,
+        });
+      } else {
+        toast({ title: "OTP Sent", description: "Check your phone for the verification code" });
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
