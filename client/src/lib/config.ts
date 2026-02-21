@@ -4,6 +4,9 @@
  * Centralized config for API endpoints and environment settings
  */
 
+// Check if running inside Electron
+export const IS_ELECTRON = !!(window as any).electronAPI?.isElectron;
+
 // API Base URL - defaults to production API
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mypa-liard.vercel.app';
 

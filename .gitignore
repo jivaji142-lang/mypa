@@ -8,3 +8,11 @@ cmdline-tools.zip
 
 # Vercel intermediate build output
 .vercel_build_output/
+
+# Electron
+dist-electron/
+release/
+*.dmg
+*.exe
+*.AppImage
+*.deb

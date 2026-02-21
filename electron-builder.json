@@ -1,0 +1,30 @@
+{
+  "appId": "com.mypa.desktop",
+  "productName": "MyPA",
+  "directories": {
+    "output": "release"
+  },
+  "files": [
+    "dist-electron/**/*",
+    "dist/public/**/*"
+  ],
+  "mac": {
+    "target": ["dmg"],
+    "category": "public.app-category.productivity",
+    "icon": "dist/public/favicon.png"
+  },
+  "win": {
+    "target": ["nsis"],
+    "icon": "dist/public/favicon.png"
+  },
+  "linux": {
+    "target": ["AppImage"],
+    "category": "Utility",
+    "icon": "dist/public/favicon.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
