@@ -8,7 +8,7 @@
 export const IS_ELECTRON = !!(window as any).electronAPI?.isElectron;
 
 // API Base URL - defaults to production API
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mypa-liard.vercel.app';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://mypa-tau.vercel.app';
 
 // Check if running in production
 export const IS_PRODUCTION = import.meta.env.PROD;
@@ -20,7 +20,7 @@ export const IS_DEVELOPMENT = import.meta.env.DEV;
  * Build full API URL
  *
  * @param path - API path (e.g., '/api/alarms')
- * @returns Full URL (e.g., 'https://mypa-liard.vercel.app/api/alarms')
+ * @returns Full URL (e.g., 'https://mypa-tau.vercel.app/api/alarms')
  */
 export function getApiUrl(path: string): string {
   // Remove leading slash if present

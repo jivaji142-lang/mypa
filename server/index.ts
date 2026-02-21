@@ -23,7 +23,7 @@ app.use(cors({
 
     // In production, allow these origins:
     const allowedOrigins = [
-      'https://mypa-liard.vercel.app',
+      'https://mypa-tau.vercel.app',
       'http://localhost:8080',
       'http://localhost:5173',
       'capacitor://localhost',  // Capacitor iOS

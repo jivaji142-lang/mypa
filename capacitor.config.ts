@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'MyPA',
   webDir: 'dist/public',
   // Server URL removed - app loads from bundled files
-  // API calls go to: https://mypa-liard.vercel.app (defined in client/src/lib/config.ts)
+  // API calls go to: https://mypa-tau.vercel.app (defined in client/src/lib/config.ts)
   plugins: {
     LocalNotifications: {
       smallIcon: "ic_stat_icon",
