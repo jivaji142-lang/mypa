@@ -313,8 +313,8 @@ export async function registerRoutes(
 
       await storage.createOtp({ phone, code: otp, expiresAt });
 
-      // Send OTP via Fast2SMS
-      const fast2smsKey = process.env.FAST2SMS_API_KEY;
+      // Send OTP via Fast2SMS (GET request as per Fast2SMS docs)
+      const fast2smsKey = (process.env.FAST2SMS_API_KEY || "").trim();
 
       if (!fast2smsKey) {
         console.error("[Fast2SMS] FAST2SMS_API_KEY not configured");
@@ -325,18 +325,12 @@ export async function registerRoutes(
       }
 
       try {
-        const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
-          method: "POST",
-          headers: {
-            "authorization": fast2smsKey,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            route: "otp",
-            variables_values: otp,
-            flash: 0,
-            numbers: phone
-          })
+        const apiUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(fast2smsKey)}&route=otp&variables_values=${otp}&flash=0&numbers=${phone}`;
+
+        console.log(`[Fast2SMS] Sending OTP to ${phone}...`);
+        const response = await fetch(apiUrl, {
+          method: "GET",
+          headers: { "cache-control": "no-cache" }
         });
 
         const result = await response.json() as any;
