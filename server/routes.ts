@@ -315,39 +315,47 @@ export async function registerRoutes(
 
       // Send OTP via Fast2SMS
       const fast2smsKey = process.env.FAST2SMS_API_KEY;
-      let smsSent = false;
 
-      if (fast2smsKey) {
-        try {
-          const message = `Your MyPA verification code is: ${otp}. Valid for 10 minutes.`;
-          const apiUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&message=${encodeURIComponent(message)}&route=q&numbers=${phone}`;
-
-          console.log(`[Fast2SMS] Sending to ${phone}...`);
-          const response = await fetch(apiUrl);
-          const result = await response.json() as any;
-
-          console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
-
-          if (result.return === true) {
-            smsSent = true;
-            console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
-          } else {
-            console.error("[Fast2SMS] Error:", result.message || result);
-          }
-        } catch (smsError) {
-          console.error("[Fast2SMS] Exception:", smsError);
-        }
+      if (!fast2smsKey) {
+        console.error("[Fast2SMS] FAST2SMS_API_KEY not configured");
+        return res.status(503).json({
+          success: false,
+          message: "SMS service not configured. Please contact support."
+        });
       }
 
-      // If SMS not sent (no key or failed), return OTP in response for dev/test
-      if (!smsSent) {
-        console.log(`[OTP] ${phone}: ${otp} (SMS not sent — FAST2SMS_API_KEY not configured)`);
-        return res.json({
-          success: true,
-          message: "OTP sent successfully",
-          // Visible only when SMS not configured — remove this once Fast2SMS is set up
-          dev_otp: otp,
-          dev_note: "SMS provider not configured. Set FAST2SMS_API_KEY in Vercel to send real SMS."
+      try {
+        const response = await fetch("https://www.fast2sms.com/dev/bulkV2", {
+          method: "POST",
+          headers: {
+            "authorization": fast2smsKey,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            route: "otp",
+            variables_values: otp,
+            flash: 0,
+            numbers: phone
+          })
+        });
+
+        const result = await response.json() as any;
+        console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
+
+        if (result.return !== true) {
+          console.error("[Fast2SMS] Error:", result.message || result);
+          return res.status(502).json({
+            success: false,
+            message: "Failed to send OTP. Please try again."
+          });
+        }
+
+        console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
+      } catch (smsError) {
+        console.error("[Fast2SMS] Exception:", smsError);
+        return res.status(502).json({
+          success: false,
+          message: "SMS service temporarily unavailable. Please try again."
         });
       }
 

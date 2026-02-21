@@ -86,12 +86,8 @@ export default function Login() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       setOtpSent(true);
-      if (data.dev_otp) {
-        // SMS not configured — auto-fill OTP silently
-        setPhoneForm(prev => ({ ...prev, otp: data.dev_otp }));
-      }
       toast({ title: "OTP Sent", description: "Check your phone for the verification code" });
     },
     onError: (error: Error) => {
