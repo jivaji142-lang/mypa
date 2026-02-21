@@ -543,19 +543,21 @@ export async function registerRoutes(
   });
 
   // Razorpay Integration (only if credentials are provided)
+  const razorpayKeyId = (process.env.RAZORPAY_KEY_ID || "").trim();
+  const razorpayKeySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
   let razorpay: Razorpay | null = null;
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  if (razorpayKeyId && razorpayKeySecret) {
     razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret
     });
-    console.log('[Razorpay] Initialized');
+    console.log('[Razorpay] Initialized with key:', razorpayKeyId);
   } else {
-    console.log('[Razorpay] Credentials not found - Razorpay disabled');
+    console.log('[Razorpay] Credentials not found - RAZORPAY_KEY_ID:', razorpayKeyId ? 'set' : 'MISSING', 'RAZORPAY_KEY_SECRET:', razorpayKeySecret ? 'set' : 'MISSING');
   }
 
   app.get("/api/razorpay/key", (req, res) => {
-    res.json({ key: process.env.RAZORPAY_KEY_ID });
+    res.json({ key: razorpayKeyId });
   });
 
   // Razorpay Webhook - handles payment.captured event
@@ -671,7 +673,7 @@ export async function registerRoutes(
       
       const body = razorpay_order_id + "|" + razorpay_payment_id;
       const expectedSignature = crypto
-        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+        .createHmac("sha256", razorpayKeySecret)
         .update(body.toString())
         .digest("hex");
       
