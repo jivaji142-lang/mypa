@@ -668,124 +668,80 @@ export function GlobalAlarmHandler() {
       style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}
       className="flex items-center justify-center"
     >
-      {/* Backdrop - pointer-events:none so it never steals touches */}
+      {/* Backdrop */}
       <div
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', pointerEvents: 'none' }}
+        onClick={() => dismissAlarm()}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)' }}
       />
 
-      {/* Modal */}
+      {/* Compact Modal Dialog */}
       <div
         style={{
           position: 'relative',
           zIndex: 1,
-          width: '100%',
-          height: '100%',
-          maxWidth: '100%',
-          maxHeight: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'linear-gradient(to bottom, #001a40, #002E6E, #003d8f)',
+          width: '90%',
+          maxWidth: '420px',
+          borderRadius: '20px',
           overflow: 'hidden',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.4)',
         }}
       >
-        {/* Close button */}
-        <button
-          onClick={() => dismissAlarm()}
+        {/* Dark blue header section */}
+        <div
           style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            zIndex: 10,
-            width: '44px',
-            height: '44px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            border: 'none',
-            color: 'rgba(255,255,255,0.8)',
-            cursor: 'pointer',
-            touchAction: 'manipulation',
+            background: 'linear-gradient(135deg, #001a40, #002E6E)',
+            padding: '24px 24px 28px',
+            position: 'relative',
           }}
-          data-testid="button-dismiss-alarm-x"
         >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Main content area - centered */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px 24px' }}>
-          {/* Alarm type badge */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            marginBottom: '24px',
-            padding: '8px 16px',
-            borderRadius: '9999px',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-          }}>
-            {activeAlarmPopup?.type === 'meeting' ? (
-              <Users style={{ width: '16px', height: '16px', color: '#00BAF2' }} />
-            ) : (
-              <Clock style={{ width: '16px', height: '16px', color: '#00BAF2' }} />
-            )}
-            <span style={{ fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.9)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {activeAlarmPopup?.type === 'alarm' ? t.alarm : activeAlarmPopup?.type === 'meeting' ? t.myMeetings : t.medicineReminder}
-            </span>
-          </div>
-
-          {/* Pulsing alarm ring animation */}
-          <div style={{ position: 'relative', marginBottom: '28px', width: '96px', height: '96px' }}>
-            <div className="animate-ping" style={{
-              position: 'absolute', inset: 0, borderRadius: '50%',
-              backgroundColor: 'rgba(0,186,242,0.2)', animationDuration: '2s',
-            }} />
-            <div className="animate-pulse" style={{
-              position: 'absolute', inset: '-8px', borderRadius: '50%',
-              backgroundColor: 'rgba(0,186,242,0.1)',
-            }} />
-            <div style={{
-              position: 'relative', width: '96px', height: '96px', borderRadius: '50%',
-              background: 'linear-gradient(135deg, #00BAF2, #0090d0)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 10px 25px rgba(0,186,242,0.3)',
-            }}>
+          {/* Header row: icon + title + close */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               {activeAlarmPopup?.type === 'meeting' ? (
-                <Users style={{ width: '40px', height: '40px', color: 'white' }} />
+                <Users style={{ width: '22px', height: '22px', color: 'white' }} />
               ) : (
-                <svg style={{ width: '40px', height: '40px', color: 'white' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-                </svg>
+                <Clock style={{ width: '22px', height: '22px', color: 'white' }} />
               )}
+              <span style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', fontStyle: 'italic' }}>
+                {activeAlarmPopup?.type === 'alarm' ? t.alarm : activeAlarmPopup?.type === 'meeting' ? t.myMeetings : t.medicineReminder}
+              </span>
             </div>
+            <button
+              onClick={() => dismissAlarm()}
+              style={{
+                width: '36px',
+                height: '36px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '50%',
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: 'rgba(255,255,255,0.6)',
+                cursor: 'pointer',
+                touchAction: 'manipulation',
+              }}
+              data-testid="button-dismiss-alarm-x"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Current time */}
-          <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-            <div style={{ fontSize: '60px', fontWeight: 'bold', color: 'white', letterSpacing: '-2px', lineHeight: 1 }}>
-              {currentTime}
-            </div>
-            <div style={{ fontSize: '20px', fontWeight: 600, color: '#00BAF2', marginTop: '4px' }}>
-              {currentPeriod}
-            </div>
-          </div>
+          {/* Alarm title */}
+          <h2 style={{ fontSize: '24px', fontWeight: 'bold', color: 'white', marginBottom: '6px', lineHeight: 1.3 }}>
+            {activeAlarmPopup?.title}
+          </h2>
 
-          {/* Alarm title & message */}
-          <div style={{ textAlign: 'center', marginBottom: '16px', maxWidth: '320px' }}>
-            <h2 style={{ fontSize: '22px', fontWeight: 'bold', color: 'white', marginBottom: '8px', lineHeight: 1.3 }}>
-              {activeAlarmPopup?.title}
-            </h2>
-            {activeAlarmPopup?.message && activeAlarmPopup.message !== activeAlarmPopup.title && (
-              <p style={{ fontSize: '15px', color: 'rgba(173,216,255,0.8)', lineHeight: 1.5 }}>
-                {activeAlarmPopup.message}
-              </p>
-            )}
-          </div>
+          {/* Alarm message */}
+          {activeAlarmPopup?.message && activeAlarmPopup.message !== activeAlarmPopup.title && (
+            <p style={{ fontSize: '16px', color: '#7dd3fc', lineHeight: 1.5, fontStyle: 'italic' }}>
+              {activeAlarmPopup.message}
+            </p>
+          )}
 
-          {/* Image (if available and loads successfully) */}
+          {/* Image (if available) */}
           {activeAlarmPopup?.imageUrl && !imageError && (
-            <div style={{ width: '100%', maxWidth: '200px', marginBottom: '16px' }}>
+            <div style={{ marginTop: '16px' }}>
               <img
                 src={activeAlarmPopup.imageUrl}
                 alt="Reminder"
@@ -796,33 +752,56 @@ export function GlobalAlarmHandler() {
           )}
         </div>
 
-        {/* Action buttons */}
-        <div style={{ padding: '8px 24px 32px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <Button
-            onClick={() => dismissAlarm()}
-            style={{
-              width: '100%', height: '56px', fontSize: '18px', borderRadius: '16px',
-              backgroundColor: '#00BAF2', color: 'white', fontWeight: 'bold',
-              boxShadow: '0 8px 20px rgba(0,186,242,0.3)', border: 'none',
-              touchAction: 'manipulation',
-            }}
-            className="hover:bg-[#00a8dd] active:bg-[#0090c0] transition-all active:scale-[0.98]"
-            data-testid="button-done"
-          >
-            {t.done}
-          </Button>
+        {/* White bottom section with action buttons */}
+        <div
+          style={{
+            backgroundColor: 'white',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+          }}
+        >
           <button
             onClick={() => snoozeAlarm(5)}
             style={{
-              width: '100%', height: '52px', fontSize: '16px', borderRadius: '16px',
-              backgroundColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.9)',
-              fontWeight: 600, border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer',
+              width: '100%',
+              height: '56px',
+              fontSize: '18px',
+              borderRadius: '9999px',
+              backgroundColor: 'transparent',
+              color: '#00BAF2',
+              fontWeight: 'bold',
+              fontStyle: 'italic',
+              border: '2px solid #00BAF2',
+              cursor: 'pointer',
               touchAction: 'manipulation',
             }}
-            className="hover:text-white hover:bg-white/20 active:bg-white/30 transition-all active:scale-[0.98]"
+            className="hover:bg-sky-50 active:bg-sky-100 transition-all active:scale-[0.98]"
             data-testid="button-remind-later"
           >
-            {t.remindMeLater}
+            {t.remindMeLater} (5 min)
+          </button>
+          <button
+            onClick={() => dismissAlarm()}
+            style={{
+              width: '100%',
+              height: '56px',
+              fontSize: '18px',
+              borderRadius: '9999px',
+              backgroundColor: '#002E6E',
+              color: 'white',
+              fontWeight: 'bold',
+              fontStyle: 'italic',
+              border: 'none',
+              cursor: 'pointer',
+              touchAction: 'manipulation',
+              boxShadow: '0 4px 12px rgba(0,46,110,0.3)',
+            }}
+            className="hover:bg-[#003580] active:bg-[#001a40] transition-all active:scale-[0.98]"
+            data-testid="button-done"
+          >
+            {t.done}
           </button>
         </div>
       </div>
