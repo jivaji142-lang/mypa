@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Loader2, Camera, Image as ImageIcon, Volume2, Mic, Music, Vibrate } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useCreateAlarm, useUpdateAlarm } from "@/hooks/use-alarms";
 import { VoiceRecorder } from "@/components/voice-recorder";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,6 +40,8 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
   });
 
   const [imagePreview, setImagePreview] = useState<string>("");
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const dialogContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (alarm) {
@@ -78,6 +80,34 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
     }
   }, [alarm, open, user?.language]);
 
+  // Detect keyboard open via visualViewport
+  useEffect(() => {
+    if (!open) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const handleResize = () => {
+      const isKeyboard = vv.height < window.innerHeight * 0.75;
+      setKeyboardVisible(isKeyboard);
+      if (dialogContentRef.current) {
+        dialogContentRef.current.style.maxHeight = `${vv.height - 32}px`;
+      }
+    };
+
+    vv.addEventListener("resize", handleResize);
+    handleResize();
+    return () => vv.removeEventListener("resize", handleResize);
+  }, [open]);
+
+  const handleFormFocus = useCallback((e: React.FocusEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      setTimeout(() => {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 300);
+    }
+  }, []);
+
   const formatTimeTo12Hour = (time24: string) => {
     const [hours, minutes] = time24.split(':');
     const h = parseInt(hours);
@@ -86,11 +116,32 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
     return `${hour12}:${minutes} ${dayNight}`;
   };
 
+  const hasFutureTime = (time: string, date: string, days: string[]): boolean => {
+    // Recurring alarm with days -> always active
+    if (days.length > 0) return true;
+
+    const now = new Date();
+    const [hours, minutes] = time.split(":").map(Number);
+
+    if (date) {
+      // Specific date: compare date+time against now
+      const target = new Date(date);
+      target.setHours(hours, minutes, 0, 0);
+      return target > now;
+    }
+
+    // No date, no days: compare time against current time today
+    const today = new Date();
+    today.setHours(hours, minutes, 0, 0);
+    return today > now;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // DO NOT send userId from client - backend extracts it from JWT token
     const data = {
       ...formData,
+      isActive: hasFutureTime(formData.time, formData.date, formData.days),
     };
 
     if (alarm) {
@@ -138,14 +189,14 @@ export function AlarmModal({ alarm, trigger }: AlarmModalProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg bg-white border-blue-100 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent ref={dialogContentRef} className="sm:max-w-lg bg-white border-blue-100 shadow-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-2xl text-[#002E6E] font-bold">
             {alarm ? "Edit Alarm" : "Set New Alarm"}
           </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4 pb-4">
+        <form onSubmit={handleSubmit} onFocus={handleFormFocus} className={`space-y-6 mt-4 ${keyboardVisible ? 'pb-48' : 'pb-4'}`}>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Alarm Name</Label>

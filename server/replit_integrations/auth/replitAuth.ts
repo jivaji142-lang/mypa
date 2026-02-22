@@ -123,9 +123,11 @@ export async function setupAuth(app: Express) {
 
       // Google OAuth routes
       app.get("/api/login", (req, res, next) => {
+        const isMobile = req.query.mobile === "true";
         passport.authenticate("google", {
           scope: ["openid", "email", "profile"],
           prompt: "select_account",
+          state: isMobile ? "mobile" : "web",
         })(req, res, next);
       });
 
@@ -140,13 +142,33 @@ export async function setupAuth(app: Express) {
 
           // Generate JWT token for the authenticated user
           const userId = (req.user as any)?.id;
+          const isMobile = req.query.state === "mobile";
           if (userId) {
             try {
               const { generateToken } = await import('../../tokenAuth');
               const user = await authStorage.getUser(userId);
               if (user) {
                 const token = generateToken(user.id, user.email || user.id);
-                // Redirect with token as query param (frontend will save it)
+                // Mobile: serve HTML page that triggers deep link
+                if (isMobile) {
+                  const deepLink = `com.mypa.app://auth-callback?token=${encodeURIComponent(token)}`;
+                  return res.send(`<!DOCTYPE html><html><head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width,initial-scale=1">
+                    <title>Logging in...</title>
+                    <style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#f8fafc;color:#002E6E;text-align:center;}</style>
+                  </head><body>
+                    <div>
+                      <h2>Login Successful!</h2>
+                      <p>Returning to MyPA app...</p>
+                      <p style="margin-top:16px"><a href="${deepLink}" style="color:#00BAF2;font-weight:bold;font-size:18px;">Tap here if not redirected</a></p>
+                    </div>
+                    <script>
+                      setTimeout(function(){ window.location.href = "${deepLink}"; }, 500);
+                    </script>
+                  </body></html>`);
+                }
+                // Web: redirect with token as query param (frontend will save it)
                 return res.redirect(`/?token=${token}`);
               }
             } catch (error) {

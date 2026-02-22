@@ -10,6 +10,9 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SiGoogle } from "react-icons/si";
 import { saveToken } from "@/lib/tokenStorage";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
+import { API_BASE_URL } from "@/lib/config";
 
 export default function Login() {
   const { toast } = useToast();
@@ -44,8 +47,13 @@ export default function Login() {
     }
   }, [toast]);
 
-  const handleGoogleLogin = () => {
-    window.location.href = "/api/login";
+  const handleGoogleLogin = async () => {
+    if (Capacitor.isNativePlatform()) {
+      // On mobile: open in system browser so Google OAuth works
+      await Browser.open({ url: `${API_BASE_URL}/api/login?mobile=true` });
+    } else {
+      window.location.href = "/api/login";
+    }
   };
 
   const emailAuth = useMutation({

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { TrialPopup } from "@/components/trial-popup";
 import { AdPopup } from "@/components/ad-popup";
 import { ExpiredBanner } from "@/components/expired-banner";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -120,8 +121,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* Main Content */}
-      <main 
-        className="flex-1 h-full overflow-y-auto p-4 md:p-8 pt-20 lg:pt-8"
+      <main
+        className="flex-1 h-full overflow-hidden p-4 md:p-8 pt-20 lg:pt-8"
         onClick={() => {
           if (window.speechSynthesis && !window.speechSynthesis.speaking) {
             const dummy = new SpeechSynthesisUtterance("");
@@ -129,9 +130,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           }
         }}
       >
-        <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {children}
-        </div>
+        <PullToRefresh>
+          <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {children}
+          </div>
+        </PullToRefresh>
       </main>
 
       {/* Trial Enforcement Popups */}

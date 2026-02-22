@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useEffect, useState } from "react";
 import { Clock, Settings } from "lucide-react";
 import { useTranslations } from "@/hooks/use-translations";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 const RoutineIcon = () => (
   <svg viewBox="0 0 120 120" className="w-20 h-20">
@@ -195,6 +196,7 @@ export default function Home() {
   ];
 
   return (
+    <PullToRefresh>
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <header className="text-center pt-6 pb-3 px-4">
         {/* MyPA Logo - Paytm Inspired */}
@@ -282,5 +284,6 @@ export default function Home() {
         </div>
       </Link>
     </div>
+    </PullToRefresh>
   );
 }
