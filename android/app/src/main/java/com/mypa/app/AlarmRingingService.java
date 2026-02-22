@@ -87,7 +87,13 @@ public class AlarmRingingService extends Service {
             Log.d(TAG, "✓ NOTIFICATION POSTED (startForeground)");
         } catch (Exception e) {
             Log.e(TAG, "✗ FAILED to start foreground!", e);
+            // Fallback: launch AlarmActivity directly even without notification
+            launchAlarmActivityDirectly();
         }
+
+        // Also launch AlarmActivity directly for maximum reliability
+        // This ensures alarm screen shows even if notification permission is missing
+        launchAlarmActivityDirectly();
 
         // Play sound
         playAlarmSound();
@@ -209,6 +215,24 @@ public class AlarmRingingService extends Service {
 
         Log.d(TAG, "✓ Notification built (app-owned alarm UI): " + title);
         return builder.build();
+    }
+
+    private void launchAlarmActivityDirectly() {
+        try {
+            Intent activityIntent = new Intent(this, AlarmActivity.class);
+            activityIntent.setFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_NO_USER_ACTION
+            );
+            activityIntent.putExtra("alarm_id", alarmId);
+            activityIntent.putExtra("alarm_title", alarmTitle);
+            activityIntent.putExtra("alarm_body", alarmBody);
+            startActivity(activityIntent);
+            Log.d(TAG, "✓ AlarmActivity launched directly");
+        } catch (Exception e) {
+            Log.e(TAG, "✗ Failed to launch AlarmActivity directly", e);
+        }
     }
 
     private void playAlarmSound() {

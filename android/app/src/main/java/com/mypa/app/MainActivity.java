@@ -1,8 +1,13 @@
 package com.mypa.app;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.CookieManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.BridgeActivity;
 
 /**
@@ -12,6 +17,7 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
     private static final String TAG = "MainActivity";
+    private static final int REQUEST_NOTIFICATION_PERMISSION = 1001;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -28,9 +34,27 @@ public class MainActivity extends BridgeActivity {
         // CRITICAL: Enable cookies for cross-origin API authentication
         enableWebViewCookies();
 
+        // CRITICAL: Request POST_NOTIFICATIONS permission (Android 13+)
+        // Without this, foreground service notifications won't show
+        requestNotificationPermission();
+
         // CRITICAL: Request alarm permissions on first launch
         // This ensures alarms work when app is killed
         AlarmPermissionHelper.ensureAllAlarmPermissions(this);
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                Log.d(TAG, "Requesting POST_NOTIFICATIONS permission...");
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                        REQUEST_NOTIFICATION_PERMISSION);
+            } else {
+                Log.d(TAG, "POST_NOTIFICATIONS permission already granted");
+            }
+        }
     }
 
     /**

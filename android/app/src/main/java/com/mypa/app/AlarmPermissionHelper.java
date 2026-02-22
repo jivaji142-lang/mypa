@@ -1,6 +1,7 @@
 package com.mypa.app;
 
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -135,17 +136,33 @@ public class AlarmPermissionHelper {
      * Check all permissions needed for reliable alarms
      * Returns true if all permissions granted
      */
+    /**
+     * Check if notification permission is granted (Android 13+)
+     * Without this, foreground service notifications won't show
+     */
+    public static boolean hasNotificationPermission(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            boolean enabled = nm != null && nm.areNotificationsEnabled();
+            Log.d(TAG, "Notification permission: " + enabled);
+            return enabled;
+        }
+        return true;
+    }
+
     public static boolean hasAllAlarmPermissions(Context context) {
         boolean exactAlarmOk = canScheduleExactAlarms(context);
         boolean batteryOk = isBatteryOptimizationDisabled(context);
+        boolean notifOk = hasNotificationPermission(context);
 
         Log.d(TAG, "════════════════════════════════════════");
         Log.d(TAG, "Alarm Permission Status:");
-        Log.d(TAG, "  Exact Alarm: " + (exactAlarmOk ? "✓ OK" : "✗ MISSING"));
-        Log.d(TAG, "  Battery Opt: " + (batteryOk ? "✓ DISABLED" : "✗ ENABLED (may kill alarms)"));
+        Log.d(TAG, "  Exact Alarm:   " + (exactAlarmOk ? "✓ OK" : "✗ MISSING"));
+        Log.d(TAG, "  Battery Opt:   " + (batteryOk ? "✓ DISABLED" : "✗ ENABLED (may kill alarms)"));
+        Log.d(TAG, "  Notifications: " + (notifOk ? "✓ OK" : "✗ MISSING (alarm UI won't show)"));
         Log.d(TAG, "════════════════════════════════════════");
 
-        return exactAlarmOk && batteryOk;
+        return exactAlarmOk && batteryOk && notifOk;
     }
 
     /**
@@ -178,6 +195,11 @@ public class AlarmPermissionHelper {
         if (!isBatteryOptimizationDisabled(context)) {
             message.append("🔋 Battery Optimization:\n");
             message.append("Disable to ensure alarms work when app is closed.\n\n");
+        }
+
+        if (!hasNotificationPermission(context)) {
+            message.append("🔔 Notification Permission:\n");
+            message.append("Required to show alarm screen and notifications.\n\n");
         }
 
         if (message.length() == 0) {
