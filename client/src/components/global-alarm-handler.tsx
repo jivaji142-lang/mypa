@@ -5,11 +5,21 @@ import { useAlarms, useUpdateAlarm } from "@/hooks/use-alarms";
 import { useMedicines } from "@/hooks/use-medicines";
 import { useTranslations } from "@/hooks/use-translations";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 import { Clock, Users, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { Capacitor } from '@capacitor/core';
+import {
+  cacheAlarms,
+  cacheMedicines,
+  cacheMeetings,
+  getCachedAlarms,
+  getCachedMedicines,
+  getCachedMeetings,
+  markDismissed,
+  getTodayDismissals,
+  clearExpiredDismissals,
+} from "@/lib/offlineStorage";
 
 interface Meeting {
   id: number;
@@ -31,7 +41,7 @@ interface ActiveAlarmData {
   voiceUrl?: string;
   audio?: HTMLAudioElement;
   language?: string;
-  isDateAlarm?: boolean; // true if this alarm was triggered by a date match (one-time)
+  isDateAlarm?: boolean;
 }
 
 const langMap: Record<string, string> = {
@@ -43,35 +53,18 @@ const langMap: Record<string, string> = {
 };
 
 export function GlobalAlarmHandler() {
-  // ═══════════════════════════════════════════════════════════════
-  // CRITICAL FIX: Disable GlobalAlarmHandler on Native Android
-  // ═══════════════════════════════════════════════════════════════
-  // PROBLEM:
-  // - Native Android has AlarmActivity (native Java UI)
-  // - Web/PWA has GlobalAlarmHandler (React component UI)
-  // - Both were showing simultaneously (double UI bug!)
-  //
-  // SOLUTION:
-  // - On native platform: Use native AlarmActivity ONLY
-  // - On web platform: Use GlobalAlarmHandler ONLY
-  // ═══════════════════════════════════════════════════════════════
-
   const isNativePlatform = Capacitor.isNativePlatform();
 
-  // Disable on native Android/iOS - use native alarm UI instead
-  if (isNativePlatform) {
-    console.log('[GlobalAlarmHandler] Running on native platform - DISABLED (using native AlarmActivity instead)');
-    return null;
-  }
-
-  console.log('[GlobalAlarmHandler] Running on web platform - ENABLED');
+  // ═══════════════════════════════════════════════════════════════
+  // ALL HOOKS MUST BE ABOVE THE CONDITIONAL RETURN (Rules of Hooks)
+  // ═══════════════════════════════════════════════════════════════
 
   const { user } = useAuth();
   const { data: alarms } = useAlarms();
   const { data: medicines } = useMedicines();
   const { data: meetings = [] } = useQuery<Meeting[]>({
     queryKey: ['/api/meetings'],
-    enabled: !!user,
+    enabled: !!user && !isNativePlatform,
     refetchInterval: 60000,
   });
   const updateAlarm = useUpdateAlarm();
@@ -87,7 +80,85 @@ export function GlobalAlarmHandler() {
   const [snoozeTimeout, setSnoozeTimeout] = useState<NodeJS.Timeout | null>(null);
   const vibrateIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isSpeakingRef = useRef<boolean>(false);
-  const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
+  const isProcessingRef = useRef(false);
+
+  // Dedup: track last triggered time per alarm to prevent double-trigger (polling + push)
+  const lastTriggeredRef = useRef<Map<string, number>>(new Map());
+
+  // Offline cached data fallback
+  const [cachedAlarms, setCachedAlarms] = useState<any[] | null>(null);
+  const [cachedMedicines, setCachedMedicines] = useState<any[] | null>(null);
+  const [cachedMeetings, setCachedMeetings] = useState<any[] | null>(null);
+
+  const [imageError, setImageError] = useState(false);
+
+  // Load persisted dismissed state from IndexedDB on mount
+  useEffect(() => {
+    if (isNativePlatform) return;
+    (async () => {
+      try {
+        await clearExpiredDismissals();
+        const dismissals = await getTodayDismissals();
+        const alarmDismissals = dismissals.get('alarm');
+        const medDismissals = dismissals.get('medicine');
+        const meetingDismissals = dismissals.get('meeting');
+        if (alarmDismissals && alarmDismissals.size > 0) setDismissedAlarms(alarmDismissals);
+        if (medDismissals && medDismissals.size > 0) setDismissedMeds(medDismissals);
+        if (meetingDismissals && meetingDismissals.size > 0) setDismissedMeetings(meetingDismissals);
+      } catch (e) {
+        console.warn('[GlobalAlarm] Failed to load dismissed state from IndexedDB:', e);
+      }
+    })();
+  }, [isNativePlatform]);
+
+  // Cache alarm data to IndexedDB when available (Step 9: offline fallback)
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (alarms && alarms.length > 0) {
+      cacheAlarms(alarms);
+    }
+  }, [alarms, isNativePlatform]);
+
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (medicines && medicines.length > 0) {
+      cacheMedicines(medicines);
+    }
+  }, [medicines, isNativePlatform]);
+
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (meetings && meetings.length > 0) {
+      cacheMeetings(meetings);
+    }
+  }, [meetings, isNativePlatform]);
+
+  // Load cached data as fallback when API data unavailable
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (!alarms) {
+      getCachedAlarms().then(setCachedAlarms);
+    }
+  }, [alarms, isNativePlatform]);
+
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (!medicines) {
+      getCachedMedicines().then(setCachedMedicines);
+    }
+  }, [medicines, isNativePlatform]);
+
+  useEffect(() => {
+    if (isNativePlatform) return;
+    if (!meetings || meetings.length === 0) {
+      getCachedMeetings().then(setCachedMeetings);
+    }
+  }, [meetings, isNativePlatform]);
+
+  // Use API data if available, otherwise fall back to cached data
+  const effectiveAlarms = alarms || cachedAlarms || [];
+  const effectiveMedicines = medicines || cachedMedicines || [];
+  const effectiveMeetings = (meetings && meetings.length > 0) ? meetings : (cachedMeetings || []);
 
   // Create fallback beep sound using Web Audio API
   const playFallbackBeep = useCallback(() => {
@@ -105,14 +176,13 @@ export function GlobalAlarmHandler() {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      oscillator.frequency.value = 800; // 800 Hz beep
+      oscillator.frequency.value = 800;
       oscillator.type = 'sine';
       gainNode.gain.value = 0.3;
 
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.5); // 500ms beep
+      oscillator.stop(audioContext.currentTime + 0.5);
 
-      // Loop the beep
       const beepInterval = setInterval(() => {
         if (!isSpeakingRef.current) {
           clearInterval(beepInterval);
@@ -130,8 +200,7 @@ export function GlobalAlarmHandler() {
         osc.stop(audioContext.currentTime + 0.5);
       }, 1000);
 
-      // Store interval for cleanup
-      setTimeout(() => clearInterval(beepInterval), 30000); // Max 30 seconds
+      setTimeout(() => clearInterval(beepInterval), 30000);
     } catch (error) {
       console.error('[GlobalAlarm] Failed to play fallback beep:', error);
     }
@@ -145,7 +214,6 @@ export function GlobalAlarmHandler() {
       if (!isSpeakingRef.current) return;
 
       try {
-        // Try native TTS first (for mobile)
         await TextToSpeech.speak({
           text: textToSpeak,
           lang: langMap[language] || 'en-US',
@@ -157,14 +225,12 @@ export function GlobalAlarmHandler() {
 
         ttsWorked = true;
 
-        // If looping is enabled and still speaking, repeat
         if (shouldLoop && isSpeakingRef.current) {
           setTimeout(() => speak(), 500);
         }
       } catch (error) {
         console.warn('[GlobalAlarm] Native TTS failed, trying web API:', error);
 
-        // Fallback to web speechSynthesis API
         if (window.speechSynthesis) {
           try {
             const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -204,7 +270,6 @@ export function GlobalAlarmHandler() {
       }
     };
 
-    // Stop any existing speech
     try {
       await TextToSpeech.stop();
     } catch (e) {
@@ -217,7 +282,22 @@ export function GlobalAlarmHandler() {
     speak();
   }, [playFallbackBeep]);
 
+  // Dedup check: returns true if this alarm was already triggered recently
+  const isDedupBlocked = useCallback((type: string, id: number): boolean => {
+    const key = `${type}-${id}`;
+    const lastTime = lastTriggeredRef.current.get(key);
+    if (lastTime && Date.now() - lastTime < 60000) {
+      console.log(`[GlobalAlarm] Dedup: skipping ${key} (triggered ${Math.round((Date.now() - lastTime) / 1000)}s ago)`);
+      return true;
+    }
+    lastTriggeredRef.current.set(key, Date.now());
+    return false;
+  }, []);
+
   const triggerAlarm = useCallback((item: any, type: 'alarm' | 'medicine' | 'meeting', isDateAlarm?: boolean) => {
+    // Dedup check
+    if (isDedupBlocked(type, item.id)) return;
+
     console.log(`[GlobalAlarm] Triggering ${type}:`, item.id, isDateAlarm ? '(date-based, one-time)' : '');
     const duration = (item.duration || 30) * 1000;
     const shouldLoop = item.loop !== false;
@@ -257,13 +337,11 @@ export function GlobalAlarmHandler() {
       audio.loop = shouldLoop;
       audio.volume = 1.0;
 
-      // Attempt to play immediately
       const playPromise = audio.play();
 
       if (playPromise !== undefined) {
         playPromise.catch(err => {
           console.error("[GlobalAlarm] Audio autoplay blocked, trying with user interaction:", err);
-          // Fallback to TTS if audio fails
           const ttsText = item.textToSpeak || item.title || item.name || t.alarm;
           speakTTS(ttsText, item.language || user?.language || 'english', item.voiceGender || 'female', shouldLoop);
         });
@@ -293,7 +371,7 @@ export function GlobalAlarmHandler() {
         }, duration);
       }
     }
-  }, [user, speakTTS, t]);
+  }, [user, speakTTS, t, isDedupBlocked]);
 
   const triggerFromPushData = useCallback((data: any) => {
     console.log('[GlobalAlarm] Triggering from push data:', data);
@@ -302,7 +380,7 @@ export function GlobalAlarmHandler() {
     const medDosage = data.dosage ? ` (${data.dosage})` : '';
     const medName = data.title || t.medicine;
     const defaultMedText = `${t.timeForMedicine}: ${medName}${medDosage}`;
-    
+
     const item = {
       id: data.id || data.alarmId || 0,
       title: data.title || (isMeeting ? t.myMeetings : isMedicine ? t.medicineReminder : t.alarm),
@@ -322,23 +400,18 @@ export function GlobalAlarmHandler() {
     triggerAlarm(item, alarmKind);
   }, [triggerAlarm, t]);
 
-  const isProcessingRef = useRef(false);
-
   const dismissAlarm = useCallback(async () => {
-    // Guard against double invocation (touch + click race condition)
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
-    
+
     isSpeakingRef.current = false;
 
-    // Stop native TTS
     try {
       await TextToSpeech.stop();
     } catch (e) {
       // Ignore errors
     }
 
-    // Stop web TTS
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -368,7 +441,9 @@ export function GlobalAlarmHandler() {
           next.set(activeAlarmPopup.id, currentTime);
           return next;
         });
-        // Deactivate date-based (one-time) alarms only when user explicitly dismisses
+        // Persist to IndexedDB
+        markDismissed('alarm', activeAlarmPopup.id, currentTime);
+
         if (activeAlarmPopup.isDateAlarm) {
           console.log(`[GlobalAlarm] Deactivating date-based alarm ${activeAlarmPopup.id} on dismiss`);
           updateAlarm.mutate({ id: activeAlarmPopup.id, isActive: false });
@@ -384,6 +459,7 @@ export function GlobalAlarmHandler() {
           next.set(activeAlarmPopup.id, currentTime);
           return next;
         });
+        markDismissed('meeting', activeAlarmPopup.id, currentTime);
       } else {
         setActiveMeds(prev => {
           const next = new Set(prev);
@@ -395,6 +471,7 @@ export function GlobalAlarmHandler() {
           next.set(activeAlarmPopup.id, currentTime);
           return next;
         });
+        markDismissed('medicine', activeAlarmPopup.id, currentTime);
       }
       setActiveAlarmPopup(null);
     }
@@ -402,26 +479,22 @@ export function GlobalAlarmHandler() {
       clearTimeout(snoozeTimeout);
       setSnoozeTimeout(null);
     }
-    
-    // Reset guard after state updates
+
     setTimeout(() => { isProcessingRef.current = false; }, 300);
   }, [activeAlarmPopup, snoozeTimeout, updateAlarm]);
 
   const snoozeAlarm = useCallback(async (minutes: number = 5) => {
-    // Guard against double invocation (touch + click race condition)
     if (isProcessingRef.current) return;
     isProcessingRef.current = true;
-    
+
     isSpeakingRef.current = false;
 
-    // Stop native TTS
     try {
       await TextToSpeech.stop();
     } catch (e) {
       // Ignore errors
     }
 
-    // Stop web TTS
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
@@ -442,11 +515,13 @@ export function GlobalAlarmHandler() {
       setActiveAlarmPopup(null);
 
       const timeout = setTimeout(() => {
+        // Clear dedup entry so snooze re-trigger works
+        lastTriggeredRef.current.delete(`${alarmData.type}-${alarmData.id}`);
+
         const item = alarmData.type === 'alarm'
-          ? alarms?.find(a => a.id === alarmData.id)
-          : medicines?.find(m => m.id === alarmData.id);
+          ? effectiveAlarms?.find((a: any) => a.id === alarmData.id)
+          : effectiveMedicines?.find((m: any) => m.id === alarmData.id);
         if (item) {
-          // Preserve isDateAlarm flag so dismiss still deactivates after snooze
           triggerAlarm(item, alarmData.type, alarmData.isDateAlarm);
         } else {
           triggerFromPushData({
@@ -464,19 +539,21 @@ export function GlobalAlarmHandler() {
 
       setSnoozeTimeout(timeout);
     }
-    
-    // Reset guard after state updates
-    setTimeout(() => { isProcessingRef.current = false; }, 300);
-  }, [activeAlarmPopup, alarms, medicines, triggerAlarm, triggerFromPushData]);
 
+    setTimeout(() => { isProcessingRef.current = false; }, 300);
+  }, [activeAlarmPopup, effectiveAlarms, effectiveMedicines, triggerAlarm, triggerFromPushData]);
+
+  // Main polling loop - uses effective (API or cached) data
   useEffect(() => {
+    if (isNativePlatform) return;
+
     const interval = setInterval(() => {
       const now = new Date();
       const currentTime = format(now, "HH:mm");
       const currentDay = format(now, "EEE");
       const currentDate = format(now, "yyyy-MM-dd");
 
-      alarms?.forEach(alarm => {
+      effectiveAlarms?.forEach((alarm: any) => {
         if (!alarm.isActive) return;
 
         const isTimeMatch = alarm.time === currentTime;
@@ -488,8 +565,6 @@ export function GlobalAlarmHandler() {
           if (!activeAlarms.has(alarm.id) && !wasDismissedThisMinute) {
             triggerAlarm(alarm, 'alarm', isDateMatch);
             setActiveAlarms(prev => new Set(prev).add(alarm.id));
-            // NOTE: Date-based alarms are deactivated in dismissAlarm(), not here.
-            // This allows "Remind me later" (snooze) to work without deactivating the alarm.
           }
         } else {
           if (activeAlarms.has(alarm.id) && !activeAlarmPopup) {
@@ -509,7 +584,7 @@ export function GlobalAlarmHandler() {
         }
       });
 
-      medicines?.forEach(med => {
+      effectiveMedicines?.forEach((med: any) => {
         const isTimeMatch = med.times?.includes(currentTime);
         const wasDismissedThisMinute = dismissedMeds.get(med.id) === currentTime;
 
@@ -536,7 +611,7 @@ export function GlobalAlarmHandler() {
         }
       });
 
-      meetings?.forEach(meeting => {
+      effectiveMeetings?.forEach((meeting: any) => {
         if (!meeting.enabled) return;
         const isTimeMatch = meeting.time === currentTime;
         const isDateMatch = meeting.date === currentDate;
@@ -576,9 +651,12 @@ export function GlobalAlarmHandler() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [alarms, medicines, meetings, activeAlarms, activeMeds, activeMeetings, activeAlarmPopup, dismissedAlarms, dismissedMeds, dismissedMeetings, triggerAlarm, user]);
+  }, [isNativePlatform, effectiveAlarms, effectiveMedicines, effectiveMeetings, activeAlarms, activeMeds, activeMeetings, activeAlarmPopup, dismissedAlarms, dismissedMeds, dismissedMeetings, triggerAlarm, user]);
 
+  // Listen for push messages from service worker
   useEffect(() => {
+    if (isNativePlatform) return;
+
     const handleSWMessage = (event: MessageEvent) => {
       if (event.data?.type === 'ALARM_TRIGGER') {
         triggerFromPushData(event.data.data);
@@ -589,9 +667,12 @@ export function GlobalAlarmHandler() {
     return () => {
       navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
     };
-  }, [triggerFromPushData]);
+  }, [isNativePlatform, triggerFromPushData]);
 
+  // Handle alarm trigger from URL parameters
   useEffect(() => {
+    if (isNativePlatform) return;
+
     const params = new URLSearchParams(window.location.search);
     const alarmId = params.get('alarm_id');
     const alarmType = params.get('alarm_type');
@@ -634,9 +715,12 @@ export function GlobalAlarmHandler() {
         }
       }
     }
-  }, [triggerFromPushData]);
+  }, [isNativePlatform, triggerFromPushData]);
 
+  // Handle custom alarm events
   useEffect(() => {
+    if (isNativePlatform) return;
+
     const handleCustomAlarm = (event: Event) => {
       const customEvent = event as CustomEvent;
       const { alarm, type } = customEvent.detail;
@@ -649,17 +733,20 @@ export function GlobalAlarmHandler() {
     return () => {
       window.removeEventListener('trigger-alarm', handleCustomAlarm);
     };
-  }, [triggerAlarm]);
-
-  const [imageError, setImageError] = useState(false);
+  }, [isNativePlatform, triggerAlarm]);
 
   // Reset image error when alarm changes
   useEffect(() => {
     setImageError(false);
   }, [activeAlarmPopup?.id]);
 
-  const currentTime = activeAlarmPopup ? format(new Date(), "hh:mm") : "";
-  const currentPeriod = activeAlarmPopup ? format(new Date(), "a").toUpperCase() : "";
+  // ═══════════════════════════════════════════════════════════════
+  // CONDITIONAL RETURN: Native platform uses native AlarmActivity
+  // ═══════════════════════════════════════════════════════════════
+  if (isNativePlatform) {
+    console.log('[GlobalAlarmHandler] Running on native platform - DISABLED (using native AlarmActivity instead)');
+    return null;
+  }
 
   if (!activeAlarmPopup) return null;
 

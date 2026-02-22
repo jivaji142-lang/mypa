@@ -7,8 +7,16 @@ import { Bell, BellOff, X } from 'lucide-react';
 export function PushNotificationPrompt() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(() => {
-    // Check if previously dismissed in this session
-    return sessionStorage.getItem('push-prompt-dismissed') === 'true';
+    // Check if previously dismissed (with 7-day expiry)
+    const dismissedAt = localStorage.getItem('push-prompt-dismissed-at');
+    if (dismissedAt) {
+      const elapsed = Date.now() - parseInt(dismissedAt, 10);
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      if (elapsed < sevenDays) return true;
+      // Expired — clear and re-prompt
+      localStorage.removeItem('push-prompt-dismissed-at');
+    }
+    return false;
   });
   
   const { data: user } = useQuery<any>({
@@ -50,8 +58,8 @@ export function PushNotificationPrompt() {
   const handleDismiss = () => {
     setDismissed(true);
     setShowPrompt(false);
-    // Remember dismissal for this session
-    sessionStorage.setItem('push-prompt-dismissed', 'true');
+    // Remember dismissal with timestamp (7-day expiry)
+    localStorage.setItem('push-prompt-dismissed-at', String(Date.now()));
   };
 
   // Don't show if already subscribed, not supported, or previously dismissed

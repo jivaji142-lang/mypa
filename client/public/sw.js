@@ -95,18 +95,15 @@ self.addEventListener('push', (event) => {
   
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      if (clients.length > 0) {
-        let messageSent = false;
-        clients.forEach((client) => {
-          client.postMessage({ type: 'ALARM_TRIGGER', data: data });
-          messageSent = true;
-        });
-        if (!messageSent) {
-          self.registration.showNotification(data.title || 'MyPA Alarm', options);
-        }
-      } else {
-        self.registration.showNotification(data.title || 'MyPA Alarm', options);
-      }
+      // Always show a system notification regardless of app state.
+      // This ensures the user sees the alarm even if the tab is backgrounded.
+      self.registration.showNotification(data.title || 'MyPA Alarm', options);
+
+      // Also post to open clients so the in-app handler can show the popup.
+      // The client-side dedup logic prevents double-trigger.
+      clients.forEach((client) => {
+        client.postMessage({ type: 'ALARM_TRIGGER', data: data });
+      });
     })
   );
 });
