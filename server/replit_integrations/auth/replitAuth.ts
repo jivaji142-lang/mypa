@@ -24,11 +24,13 @@ export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const isProduction = process.env.NODE_ENV === 'production';
 
-  // Use MemoryStore for development (fast, no remote DB hit)
-  // Use PG store for production (persistent across restarts & serverless invocations)
+  // Use MemoryStore for development AND Vercel serverless (no persistent process)
+  // Use PG store for production on long-lived servers only
+  // On Vercel, sessions are per-invocation anyway — JWT is the real auth mechanism
   let store: session.Store;
+  const isVercel = !!process.env.VERCEL;
 
-  if (isProduction && process.env.DATABASE_URL) {
+  if (isProduction && process.env.DATABASE_URL && !isVercel) {
     const pgStore = connectPg(session);
     store = new pgStore({
       pool: pool,                   // Reuse the app's existing PG pool (has SSL configured)
@@ -44,7 +46,7 @@ export function getSession() {
     store = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
     });
-    console.log('[Session] Using in-memory session store (fast dev mode)');
+    console.log(`[Session] Using in-memory session store (${isVercel ? 'Vercel serverless' : 'dev mode'})`);
   }
 
   // CRITICAL FIX for Android WebView cross-origin cookies:

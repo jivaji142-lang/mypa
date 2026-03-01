@@ -22,6 +22,17 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Health check — no auth, tests DB connectivity
+  app.get('/api/health', async (_req, res) => {
+    try {
+      const result = await db.execute(sql`SELECT 1 AS ok`);
+      res.json({ status: 'ok', db: 'connected', timestamp: new Date().toISOString() });
+    } catch (err: any) {
+      console.error('[Health] DB check failed:', err.message);
+      res.status(500).json({ status: 'error', db: 'disconnected', error: err.message, timestamp: new Date().toISOString() });
+    }
+  });
+
   // Auth Setup
   await setupAuth(app);
   registerAuthRoutes(app);

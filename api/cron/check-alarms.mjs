@@ -155,31 +155,24 @@ if (!process.env.DATABASE_URL) {
   );
 }
 var isNeon = (process.env.DATABASE_URL || "").includes("neon.tech");
+var isServerless = !!process.env.VERCEL;
 var pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Pool sizing
-  max: 10,
-  // max connections in pool
-  min: 2,
-  // keep 2 warm connections ready
-  // Timeouts
-  idleTimeoutMillis: 3e4,
-  // close idle connections after 30s
-  connectionTimeoutMillis: 1e4,
-  // fail fast if can't connect in 10s
-  // Keep connections warm (critical for remote DBs like Neon)
-  keepAlive: true,
-  keepAliveInitialDelayMillis: 1e4,
+  // Pool sizing — conservative for serverless (Neon free tier allows ~5 total)
+  max: isServerless ? 3 : 10,
+  min: 0,
+  // no pre-allocated connections (critical for serverless)
+  // Timeouts — fail fast on serverless
+  idleTimeoutMillis: isServerless ? 1e4 : 3e4,
+  connectionTimeoutMillis: 5e3,
+  // No keepAlive on serverless (connections are ephemeral)
+  keepAlive: !isServerless,
+  keepAliveInitialDelayMillis: isServerless ? void 0 : 1e4,
   // SSL required for Neon and most cloud DBs
   ssl: isNeon ? { rejectUnauthorized: false } : void 0
 });
 pool.on("error", (err) => {
   console.error("[DB] Pool connection error (non-fatal):", err.message);
-});
-pool.query("SELECT 1").then(() => {
-  console.log("[DB] Connection pool warmed up");
-}).catch((err) => {
-  console.error("[DB] Pool warm-up failed:", err.message);
 });
 var db = drizzle(pool, { schema: schema_exports });
 

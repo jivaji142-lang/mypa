@@ -156,7 +156,7 @@ var init_schema = __esm({
 // server/db.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-var Pool, isNeon, pool, db;
+var Pool, isNeon, isServerless, pool, db;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
@@ -168,31 +168,24 @@ var init_db = __esm({
       );
     }
     isNeon = (process.env.DATABASE_URL || "").includes("neon.tech");
+    isServerless = !!process.env.VERCEL;
     pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      // Pool sizing
-      max: 10,
-      // max connections in pool
-      min: 2,
-      // keep 2 warm connections ready
-      // Timeouts
-      idleTimeoutMillis: 3e4,
-      // close idle connections after 30s
-      connectionTimeoutMillis: 1e4,
-      // fail fast if can't connect in 10s
-      // Keep connections warm (critical for remote DBs like Neon)
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 1e4,
+      // Pool sizing — conservative for serverless (Neon free tier allows ~5 total)
+      max: isServerless ? 3 : 10,
+      min: 0,
+      // no pre-allocated connections (critical for serverless)
+      // Timeouts — fail fast on serverless
+      idleTimeoutMillis: isServerless ? 1e4 : 3e4,
+      connectionTimeoutMillis: 5e3,
+      // No keepAlive on serverless (connections are ephemeral)
+      keepAlive: !isServerless,
+      keepAliveInitialDelayMillis: isServerless ? void 0 : 1e4,
       // SSL required for Neon and most cloud DBs
       ssl: isNeon ? { rejectUnauthorized: false } : void 0
     });
     pool.on("error", (err) => {
       console.error("[DB] Pool connection error (non-fatal):", err.message);
-    });
-    pool.query("SELECT 1").then(() => {
-      console.log("[DB] Connection pool warmed up");
-    }).catch((err) => {
-      console.error("[DB] Pool warm-up failed:", err.message);
     });
     db = drizzle(pool, { schema: schema_exports });
   }
@@ -705,7 +698,8 @@ function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1e3;
   const isProduction = process.env.NODE_ENV === "production";
   let store;
-  if (isProduction && process.env.DATABASE_URL) {
+  const isVercel = !!process.env.VERCEL;
+  if (isProduction && process.env.DATABASE_URL && !isVercel) {
     const pgStore = connectPg(session);
     store = new pgStore({
       pool,
@@ -725,7 +719,7 @@ function getSession() {
       checkPeriod: 864e5
       // prune expired entries every 24h
     });
-    console.log("[Session] Using in-memory session store (fast dev mode)");
+    console.log(`[Session] Using in-memory session store (${isVercel ? "Vercel serverless" : "dev mode"})`);
   }
   return session({
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
@@ -1290,6 +1284,15 @@ function setAlarmActiveStatus(alarmData) {
 // server/routes.ts
 import multer from "multer";
 async function registerRoutes(httpServer2, app2) {
+  app2.get("/api/health", async (_req, res) => {
+    try {
+      const result = await db.execute(sql2`SELECT 1 AS ok`);
+      res.json({ status: "ok", db: "connected", timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+    } catch (err) {
+      console.error("[Health] DB check failed:", err.message);
+      res.status(500).json({ status: "error", db: "disconnected", error: err.message, timestamp: (/* @__PURE__ */ new Date()).toISOString() });
+    }
+  });
   await setupAuth(app2);
   registerAuthRoutes(app2);
   app2.post("/api/auth/token-login", handleTokenLogin);
