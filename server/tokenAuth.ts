@@ -84,7 +84,7 @@ export async function handleTokenLogin(req: Request, res: Response) {
 
   try {
     // Find user by email
-    const user = await authStorage.getUserByEmail(email.toLowerCase());
+    const user = await authStorage.getUserByEmail(email.toLowerCase().trim());
 
     if (!user || !user.passwordHash) {
       return res.status(401).json({ message: 'Invalid credentials' });

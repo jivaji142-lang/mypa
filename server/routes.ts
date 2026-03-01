@@ -231,21 +231,12 @@ export async function registerRoutes(
     password: z.string().min(1, "Password is required")
   });
 
-  const phoneSchema = z.object({
-    phone: z.string().min(10, "Invalid phone number")
-  });
-
-  const verifyOtpSchema = z.object({
-    phone: z.string().min(10, "Invalid phone number"),
-    otp: z.string().length(6, "OTP must be 6 digits"),
-    name: z.string().optional()
-  });
-
   // Email/Password Authentication
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const validatedData = signupSchema.parse(req.body);
-      const { email, password, name } = validatedData;
+      const email = validatedData.email.toLowerCase().trim();
+      const { password, name } = validatedData;
 
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
@@ -278,140 +269,28 @@ export async function registerRoutes(
       res.json({
         success: true,
         token,
-        user: sanitizeUser(user)
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        }
       });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
+      if (err.code === '23505') {
+        return res.status(409).json({ message: "Email already registered" });
+      }
       console.error("Signup error:", err);
-      res.status(500).json({ message: "Signup failed" });
+      res.status(500).json({ message: "An unexpected error occurred. Please try again." });
     }
   });
 
   // NOTE: /api/auth/token-login is already registered above (line 32)
   // It uses handleTokenLogin from tokenAuth.ts
   // No need for duplicate /api/auth/login endpoint
-
-  // Helper to normalize Indian phone numbers to 10 digits
-  const normalizePhone = (phone: string): string =>
-    phone.replace(/^\+91/, '').replace(/^91/, '').replace(/\s/g, '').replace(/-/g, '');
-
-  // Phone OTP Authentication with Fast2SMS
-  app.post("/api/auth/send-otp", async (req, res) => {
-    try {
-      const validatedData = phoneSchema.parse(req.body);
-      const phone = normalizePhone(validatedData.phone);
-
-      if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-        return res.status(400).json({ message: "Please enter valid 10-digit mobile number" });
-      }
-
-      // Generate 6-digit OTP
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-      await storage.createOtp({ phone, code: otp, expiresAt });
-
-      // Send OTP via Fast2SMS (GET request as per Fast2SMS docs)
-      const fast2smsKey = (process.env.FAST2SMS_API_KEY || "").trim();
-
-      if (!fast2smsKey) {
-        console.error("[Fast2SMS] FAST2SMS_API_KEY not configured");
-        return res.status(503).json({
-          success: false,
-          message: "SMS service not configured. Please contact support."
-        });
-      }
-
-      try {
-        const apiUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${encodeURIComponent(fast2smsKey)}&route=otp&variables_values=${otp}&flash=0&numbers=${phone}`;
-
-        console.log(`[Fast2SMS] Sending OTP to ${phone}...`);
-        const response = await fetch(apiUrl, {
-          method: "GET",
-          headers: { "cache-control": "no-cache" }
-        });
-
-        const result = await response.json() as any;
-        console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
-
-        if (result.return !== true) {
-          console.error("[Fast2SMS] Error:", result.message || result);
-          return res.status(502).json({
-            success: false,
-            message: "Failed to send OTP. Please try again."
-          });
-        }
-
-        console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
-      } catch (smsError) {
-        console.error("[Fast2SMS] Exception:", smsError);
-        return res.status(502).json({
-          success: false,
-          message: "SMS service temporarily unavailable. Please try again."
-        });
-      }
-
-      res.json({ success: true, message: "OTP sent to your mobile number" });
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Send OTP error:", err);
-      res.status(500).json({ message: "Failed to send OTP" });
-    }
-  });
-
-  app.post("/api/auth/verify-otp", async (req, res) => {
-    try {
-      const validatedData = verifyOtpSchema.parse(req.body);
-      // Normalize phone same way as send-otp so DB lookup matches
-      const phone = normalizePhone(validatedData.phone);
-      const { otp, name } = validatedData;
-
-      const validOtp = await storage.verifyOtp(phone, otp);
-      if (!validOtp) {
-        return res.status(401).json({ message: "Invalid or expired OTP" });
-      }
-
-      // Find or create user by phone
-      let user = await storage.getUserByPhone(phone);
-      if (!user) {
-        const nameParts = (name || "").split(" ");
-        user = await storage.createPhoneUser({
-          phone,
-          firstName: nameParts[0] || phone.slice(-4),
-          lastName: nameParts.slice(1).join(" ") || "",
-          authProvider: "phone"
-        });
-      }
-
-      // Generate JWT token for mobile app compatibility
-      const { generateToken } = await import("./tokenAuth");
-      const token = generateToken(user.id, user.email || user.phone || user.id);
-
-      // Also setup session for backwards compatibility
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Session setup error:", err);
-        }
-      });
-
-      // Return token and user data
-      res.json({
-        success: true,
-        token,
-        user: sanitizeUser(user)
-      });
-    } catch (err: any) {
-      if (err instanceof z.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Verify OTP error:", err);
-      res.status(500).json({ message: "Verification failed" });
-    }
-  });
 
   // Stripe Payment Routes
   app.get("/api/stripe/publishable-key", async (req, res) => {
