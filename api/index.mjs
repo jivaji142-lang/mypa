@@ -1480,11 +1480,13 @@ async function registerRoutes(httpServer2, app2) {
       });
       const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
       const token = generateToken2(user.id, user.email);
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Session setup error:", err);
-        }
-      });
+      if (typeof req.login === "function") {
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Session setup error:", err);
+          }
+        });
+      }
       res.json({
         success: true,
         token,

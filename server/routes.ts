@@ -258,12 +258,14 @@ export async function registerRoutes(
       const { generateToken } = await import("./tokenAuth");
       const token = generateToken(user.id, user.email);
 
-      // Also setup session for backwards compatibility
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Session setup error:", err);
-        }
-      });
+      // Also setup session for backwards compatibility (may not exist on serverless)
+      if (typeof req.login === 'function') {
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Session setup error:", err);
+          }
+        });
+      }
 
       // Return token and user data
       res.json({
