@@ -227,7 +227,7 @@ async function sendPushNotification(userId, payload) {
         },
         JSON.stringify(payload),
         {
-          TTL: 60,
+          TTL: 3600,
           urgency: "high",
           headers: {
             "Urgency": "high"

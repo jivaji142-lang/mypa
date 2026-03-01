@@ -301,78 +301,6 @@ var init_localAuth = __esm({
   }
 });
 
-// server/replit_integrations/auth/googleAuth.ts
-var googleAuth_exports = {};
-__export(googleAuth_exports, {
-  setupGoogleAuth: () => setupGoogleAuth
-});
-import passport2 from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { eq as eq3 } from "drizzle-orm";
-function setupGoogleAuth(app2) {
-  const clientID = process.env.GOOGLE_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const callbackURL = process.env.GOOGLE_CALLBACK_URL || "/api/auth/google/callback";
-  if (!clientID || !clientSecret) {
-    console.log("[Google Auth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set \u2014 Google login disabled");
-    return false;
-  }
-  passport2.use(
-    new GoogleStrategy(
-      {
-        clientID,
-        clientSecret,
-        callbackURL,
-        scope: ["openid", "email", "profile"]
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const email = profile.emails?.[0]?.value;
-          if (!email) {
-            return done(new Error("No email found in Google profile"), void 0);
-          }
-          let user = await authStorage.getUserByEmail(email);
-          if (user) {
-            const [updatedUser] = await db.update(users).set({
-              firstName: profile.name?.givenName || user.firstName,
-              lastName: profile.name?.familyName || user.lastName,
-              profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
-              authProvider: "google",
-              updatedAt: /* @__PURE__ */ new Date()
-            }).where(eq3(users.id, user.id)).returning();
-            return done(null, { id: updatedUser.id });
-          }
-          const trialEndsAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1e3);
-          const [newUser] = await db.insert(users).values({
-            email,
-            firstName: profile.name?.givenName || email.split("@")[0],
-            lastName: profile.name?.familyName || "",
-            profileImageUrl: profile.photos?.[0]?.value || null,
-            authProvider: "google",
-            subscriptionStatus: "trial",
-            trialEndsAt
-          }).returning();
-          console.log(`[Google Auth] New user created: ${email}`);
-          return done(null, { id: newUser.id });
-        } catch (error) {
-          console.error("[Google Auth] Error:", error);
-          return done(error, void 0);
-        }
-      }
-    )
-  );
-  console.log("[Google Auth] Strategy registered successfully");
-  return true;
-}
-var init_googleAuth = __esm({
-  "server/replit_integrations/auth/googleAuth.ts"() {
-    "use strict";
-    init_storage();
-    init_db();
-    init_schema();
-  }
-});
-
 // server/tokenAuth.ts
 var tokenAuth_exports = {};
 __export(tokenAuth_exports, {
@@ -406,7 +334,7 @@ async function handleTokenLogin(req, res) {
     return res.status(400).json({ message: "Email and password required" });
   }
   try {
-    const user = await authStorage.getUserByEmail(email.toLowerCase());
+    const user = await authStorage.getUserByEmail(email.toLowerCase().trim());
     if (!user || !user.passwordHash) {
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -759,7 +687,7 @@ init_storage();
 init_db();
 import * as client from "openid-client";
 import { Strategy } from "openid-client/passport";
-import passport3 from "passport";
+import passport2 from "passport";
 import session from "express-session";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
@@ -845,61 +773,17 @@ async function upsertUser(claims) {
 async function setupAuth(app2) {
   app2.set("trust proxy", 1);
   app2.use(getSession());
-  app2.use(passport3.initialize());
-  app2.use(passport3.session());
+  app2.use(passport2.initialize());
+  app2.use(passport2.session());
   if (!process.env.REPL_ID) {
-    console.log("[Auth] Running outside Replit \u2014 setting up Local + Google auth");
+    console.log("[Auth] Running outside Replit \u2014 setting up Local auth");
     const { setupLocalAuth: setupLocalAuth2 } = await Promise.resolve().then(() => (init_localAuth(), localAuth_exports));
     setupLocalAuth2(app2);
-    const { setupGoogleAuth: setupGoogleAuth2 } = await Promise.resolve().then(() => (init_googleAuth(), googleAuth_exports));
-    const googleEnabled = setupGoogleAuth2(app2);
-    if (googleEnabled) {
-      passport3.serializeUser((user, cb) => cb(null, user.id));
-      passport3.deserializeUser(async (id, cb) => {
-        try {
-          const user = await authStorage.getUser(id);
-          cb(null, user ? { id: user.id } : null);
-        } catch (error) {
-          cb(error);
-        }
+    app2.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect("/login");
       });
-      app2.get("/api/login", (req, res, next) => {
-        passport3.authenticate("google", {
-          scope: ["openid", "email", "profile"],
-          prompt: "select_account"
-        })(req, res, next);
-      });
-      app2.get("/api/auth/google/callback", (req, res, next) => {
-        passport3.authenticate("google", {
-          failureRedirect: "/login?error=google_auth_failed"
-        })(req, res, async (err) => {
-          if (err) {
-            console.error("[Google Auth] Callback error:", err);
-            return res.redirect("/login?error=google_auth_failed");
-          }
-          const userId = req.user?.id;
-          if (userId) {
-            try {
-              const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
-              const user = await authStorage.getUser(userId);
-              if (user) {
-                const token = generateToken2(user.id, user.email || user.id);
-                return res.redirect(`/?token=${token}`);
-              }
-            } catch (error) {
-              console.error("[Google Auth] Token generation error:", error);
-            }
-          }
-          return res.redirect("/");
-        });
-      });
-      app2.get("/api/logout", (req, res) => {
-        req.logout(() => {
-          res.redirect("/login");
-        });
-      });
-      console.log("[Auth] Google OAuth routes registered: /api/login, /api/auth/google/callback, /api/logout");
-    }
+    });
     return;
   }
   const config = await getOidcConfig();
@@ -923,22 +807,22 @@ async function setupAuth(app2) {
         },
         verify
       );
-      passport3.use(strategy);
+      passport2.use(strategy);
       registeredStrategies.add(strategyName);
     }
   };
-  passport3.serializeUser((user, cb) => cb(null, user));
-  passport3.deserializeUser((user, cb) => cb(null, user));
+  passport2.serializeUser((user, cb) => cb(null, user));
+  passport2.deserializeUser((user, cb) => cb(null, user));
   app2.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
-    passport3.authenticate(`replitauth:${req.hostname}`, {
+    passport2.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"]
     })(req, res, next);
   });
   app2.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
-    passport3.authenticate(`replitauth:${req.hostname}`, {
+    passport2.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login"
     })(req, res, next);
@@ -1113,7 +997,7 @@ import crypto from "crypto";
 init_db();
 init_schema();
 import webPush from "web-push";
-import { eq as eq4 } from "drizzle-orm";
+import { eq as eq3 } from "drizzle-orm";
 var vapidKeys = {
   publicKey: process.env.VAPID_PUBLIC_KEY || "",
   privateKey: process.env.VAPID_PRIVATE_KEY || ""
@@ -1134,7 +1018,7 @@ function getVapidPublicKey() {
   return vapidKeys.publicKey;
 }
 async function sendPushNotification(userId, payload) {
-  const subscriptions = await db.select().from(pushSubscriptions).where(eq4(pushSubscriptions.userId, userId));
+  const subscriptions = await db.select().from(pushSubscriptions).where(eq3(pushSubscriptions.userId, userId));
   if (subscriptions.length === 0) {
     console.log(`[Push] No subscriptions found for user ${userId}`);
     return { success: 0, failed: 0 };
@@ -1155,7 +1039,7 @@ async function sendPushNotification(userId, payload) {
         },
         JSON.stringify(payload),
         {
-          TTL: 60,
+          TTL: 3600,
           urgency: "high",
           headers: {
             "Urgency": "high"
@@ -1168,7 +1052,7 @@ async function sendPushNotification(userId, payload) {
       failed++;
       console.error(`[Push] \u2717 Failed to send to ${deviceInfo}:`, error.message);
       if (error.statusCode === 410 || error.statusCode === 404) {
-        await db.delete(pushSubscriptions).where(eq4(pushSubscriptions.id, sub.id));
+        await db.delete(pushSubscriptions).where(eq3(pushSubscriptions.id, sub.id));
         console.log(`[Push] Removed invalid subscription ${sub.id} (${deviceInfo})`);
       }
     }
@@ -1177,7 +1061,7 @@ async function sendPushNotification(userId, payload) {
   return { success, failed };
 }
 async function savePushSubscription(userId, endpoint, p256dh, auth, platform, deviceType, supportsFullScreen, deviceName) {
-  const existing = await db.select().from(pushSubscriptions).where(eq4(pushSubscriptions.endpoint, endpoint));
+  const existing = await db.select().from(pushSubscriptions).where(eq3(pushSubscriptions.endpoint, endpoint));
   if (existing.length > 0) {
     await db.update(pushSubscriptions).set({
       userId,
@@ -1187,7 +1071,7 @@ async function savePushSubscription(userId, endpoint, p256dh, auth, platform, de
       deviceType: deviceType || "desktop",
       supportsFullScreen: supportsFullScreen || false,
       deviceName: deviceName || null
-    }).where(eq4(pushSubscriptions.endpoint, endpoint));
+    }).where(eq3(pushSubscriptions.endpoint, endpoint));
     console.log(`[Push] Updated subscription for user ${userId} - ${deviceName || deviceType}`);
   } else {
     await db.insert(pushSubscriptions).values({
@@ -1204,14 +1088,14 @@ async function savePushSubscription(userId, endpoint, p256dh, auth, platform, de
   }
 }
 async function removePushSubscription(endpoint) {
-  await db.delete(pushSubscriptions).where(eq4(pushSubscriptions.endpoint, endpoint));
+  await db.delete(pushSubscriptions).where(eq3(pushSubscriptions.endpoint, endpoint));
   console.log(`[Push] Subscription removed`);
 }
 
 // server/alarmScheduler.ts
 init_db();
 init_schema();
-import { eq as eq5 } from "drizzle-orm";
+import { eq as eq4 } from "drizzle-orm";
 var schedulerInterval = null;
 var lastCheckedMinute = "";
 function getCurrentTimeIST() {
@@ -1262,9 +1146,9 @@ async function checkAndSendAlarms() {
   console.log(`[Scheduler] Checking at ${time} on ${day} (${date})`);
   try {
     const [activeAlarms, activeMedicines, activeMeetings] = await Promise.all([
-      db.select().from(alarms).where(eq5(alarms.isActive, true)),
-      db.select().from(medicines).where(eq5(medicines.isActive, true)),
-      db.select().from(meetings).where(eq5(meetings.enabled, true))
+      db.select().from(alarms).where(eq4(alarms.isActive, true)),
+      db.select().from(medicines).where(eq4(medicines.isActive, true)),
+      db.select().from(meetings).where(eq4(meetings.enabled, true))
     ]);
     const pushPromises = [];
     for (const alarm of activeAlarms) {
@@ -1576,18 +1460,11 @@ async function registerRoutes(httpServer2, app2) {
     email: z2.string().email("Invalid email format"),
     password: z2.string().min(1, "Password is required")
   });
-  const phoneSchema = z2.object({
-    phone: z2.string().min(10, "Invalid phone number")
-  });
-  const verifyOtpSchema = z2.object({
-    phone: z2.string().min(10, "Invalid phone number"),
-    otp: z2.string().length(6, "OTP must be 6 digits"),
-    name: z2.string().optional()
-  });
   app2.post("/api/auth/signup", async (req, res) => {
     try {
       const validatedData = signupSchema.parse(req.body);
-      const { email, password, name } = validatedData;
+      const email = validatedData.email.toLowerCase().trim();
+      const { password, name } = validatedData;
       const existingUser = await storage.getUserByEmail(email);
       if (existingUser) {
         return res.status(400).json({ message: "Email already registered" });
@@ -1611,103 +1488,22 @@ async function registerRoutes(httpServer2, app2) {
       res.json({
         success: true,
         token,
-        user: sanitizeUser2(user)
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName
+        }
       });
     } catch (err) {
       if (err instanceof z2.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
+      }
+      if (err.code === "23505") {
+        return res.status(409).json({ message: "Email already registered" });
       }
       console.error("Signup error:", err);
-      res.status(500).json({ message: "Signup failed" });
-    }
-  });
-  const normalizePhone = (phone) => phone.replace(/^\+91/, "").replace(/^91/, "").replace(/\s/g, "").replace(/-/g, "");
-  app2.post("/api/auth/send-otp", async (req, res) => {
-    try {
-      const validatedData = phoneSchema.parse(req.body);
-      const phone = normalizePhone(validatedData.phone);
-      if (phone.length !== 10 || !/^\d{10}$/.test(phone)) {
-        return res.status(400).json({ message: "Please enter valid 10-digit mobile number" });
-      }
-      const otp = Math.floor(1e5 + Math.random() * 9e5).toString();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1e3);
-      await storage.createOtp({ phone, code: otp, expiresAt });
-      const fast2smsKey = process.env.FAST2SMS_API_KEY;
-      let smsSent = false;
-      if (fast2smsKey) {
-        try {
-          const message = `Your MyPA verification code is: ${otp}. Valid for 10 minutes.`;
-          const apiUrl = `https://www.fast2sms.com/dev/bulkV2?authorization=${fast2smsKey}&message=${encodeURIComponent(message)}&route=q&numbers=${phone}`;
-          console.log(`[Fast2SMS] Sending to ${phone}...`);
-          const response = await fetch(apiUrl);
-          const result = await response.json();
-          console.log(`[Fast2SMS] Response:`, JSON.stringify(result, null, 2));
-          if (result.return === true) {
-            smsSent = true;
-            console.log(`[Fast2SMS] SUCCESS - OTP sent to ${phone}`);
-          } else {
-            console.error("[Fast2SMS] Error:", result.message || result);
-          }
-        } catch (smsError) {
-          console.error("[Fast2SMS] Exception:", smsError);
-        }
-      }
-      if (!smsSent) {
-        console.log(`[OTP] ${phone}: ${otp} (SMS not sent \u2014 FAST2SMS_API_KEY not configured)`);
-        return res.json({
-          success: true,
-          message: "OTP sent successfully",
-          // Visible only when SMS not configured — remove this once Fast2SMS is set up
-          dev_otp: otp,
-          dev_note: "SMS provider not configured. Set FAST2SMS_API_KEY in Vercel to send real SMS."
-        });
-      }
-      res.json({ success: true, message: "OTP sent to your mobile number" });
-    } catch (err) {
-      if (err instanceof z2.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Send OTP error:", err);
-      res.status(500).json({ message: "Failed to send OTP" });
-    }
-  });
-  app2.post("/api/auth/verify-otp", async (req, res) => {
-    try {
-      const validatedData = verifyOtpSchema.parse(req.body);
-      const phone = normalizePhone(validatedData.phone);
-      const { otp, name } = validatedData;
-      const validOtp = await storage.verifyOtp(phone, otp);
-      if (!validOtp) {
-        return res.status(401).json({ message: "Invalid or expired OTP" });
-      }
-      let user = await storage.getUserByPhone(phone);
-      if (!user) {
-        const nameParts = (name || "").split(" ");
-        user = await storage.createPhoneUser({
-          phone,
-          firstName: nameParts[0] || phone.slice(-4),
-          lastName: nameParts.slice(1).join(" ") || "",
-          authProvider: "phone"
-        });
-      }
-      const { generateToken: generateToken2 } = await Promise.resolve().then(() => (init_tokenAuth(), tokenAuth_exports));
-      const token = generateToken2(user.id, user.email || user.phone || user.id);
-      req.login(user, (err) => {
-        if (err) {
-          console.error("Session setup error:", err);
-        }
-      });
-      res.json({
-        success: true,
-        token,
-        user: sanitizeUser2(user)
-      });
-    } catch (err) {
-      if (err instanceof z2.ZodError) {
-        return res.status(400).json({ message: err.errors[0].message });
-      }
-      console.error("Verify OTP error:", err);
-      res.status(500).json({ message: "Verification failed" });
+      res.status(500).json({ message: "An unexpected error occurred. Please try again." });
     }
   });
   app2.get("/api/stripe/publishable-key", async (req, res) => {
@@ -1818,18 +1614,20 @@ async function registerRoutes(httpServer2, app2) {
       res.status(500).json({ message: error.message || "Portal access failed" });
     }
   });
+  const razorpayKeyId = (process.env.RAZORPAY_KEY_ID || "").trim();
+  const razorpayKeySecret = (process.env.RAZORPAY_KEY_SECRET || "").trim();
   let razorpay = null;
-  if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+  if (razorpayKeyId && razorpayKeySecret) {
     razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret
     });
-    console.log("[Razorpay] Initialized");
+    console.log("[Razorpay] Initialized with key:", razorpayKeyId);
   } else {
-    console.log("[Razorpay] Credentials not found - Razorpay disabled");
+    console.log("[Razorpay] Credentials not found - RAZORPAY_KEY_ID:", razorpayKeyId ? "set" : "MISSING", "RAZORPAY_KEY_SECRET:", razorpayKeySecret ? "set" : "MISSING");
   }
   app2.get("/api/razorpay/key", (req, res) => {
-    res.json({ key: process.env.RAZORPAY_KEY_ID });
+    res.json({ key: razorpayKeyId });
   });
   app2.post("/api/razorpay/webhook", async (req, res) => {
     if (!razorpay) {
@@ -1917,7 +1715,7 @@ async function registerRoutes(httpServer2, app2) {
       const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
       const userId = getUserId(req);
       const body = razorpay_order_id + "|" + razorpay_payment_id;
-      const expectedSignature = crypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET).update(body.toString()).digest("hex");
+      const expectedSignature = crypto.createHmac("sha256", razorpayKeySecret).update(body.toString()).digest("hex");
       if (expectedSignature !== razorpay_signature) {
         return res.status(400).json({ message: "Invalid payment signature" });
       }
